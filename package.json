@@ -1,0 +1,17 @@
+{
+  "name": "vivacare",
+  "version": "1.0.0",
+  "private": true,
+  "description": "VivaCare — Sistema de Gestão da Experiência do Paciente",
+  "workspaces": ["frontend", "backend"],
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,green \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "npm --workspace backend run dev",
+    "dev:web": "npm --workspace frontend run dev",
+    "build": "npm --workspace frontend run build",
+    "db:migrate": "npm --workspace backend run db:migrate",
+    "db:seed": "npm --workspace backend run db:seed",
+    "test": "npm --workspace backend test"
+  },
+  "devDependencies": { "concurrently": "^9.1.2" }
+}
