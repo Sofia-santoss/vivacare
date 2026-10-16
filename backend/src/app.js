@@ -162,7 +162,7 @@ app.post('/api/pesquisas/sessoes/:id/respostas', publicLimiter, async (req, res,
     if (!q) return res.status(400).json({ error: 'Pergunta inválida para esta pesquisa.' });
     if (q.type === 'NPS' && (!Number.isInteger(data.value) || data.value < 0 || data.value > 10)) return res.status(400).json({ error: 'O NPS deve ser uma nota de 0 a 10.' });
     if (q.type === 'FACES' && !['satisfeito', 'neutro', 'insatisfeito'].includes(data.value)) return res.status(400).json({ error: 'Resposta inválida.' });
-    if (q.type === 'SCALE' && (!Number.isInteger(data.value) || data.value < 1 || data.value > 10)) return res.status(400).json({ error: 'A escala deve ser um número inteiro de 1 a 10.' });
+    if (q.type === 'SCALE' && (!Number.isInteger(data.value) || !Array.isArray(q.options) || !q.options.includes(data.value))) return res.status(400).json({ error: 'Selecione uma nota válida.' });
     if (q.type === 'OPTIONS' && (!Array.isArray(q.options) || !q.options.some(option => JSON.stringify(option) === JSON.stringify(data.value)))) return res.status(400).json({ error: 'Selecione uma opção válida.' });
     if (q.type === 'MULTI_OPTIONS' && (!Array.isArray(data.value) || !Array.isArray(q.options) || data.value.some(value => !q.options.some(option => JSON.stringify(option) === JSON.stringify(value))))) return res.status(400).json({ error: 'Selecione opções válidas.' });
     if (q.type === 'TEXT' && (typeof data.value !== 'string' || data.value.length > 3000)) return res.status(400).json({ error: 'O texto da resposta é inválido.' });
@@ -227,7 +227,7 @@ app.get('/api/dashboard/indicadores', requireUser, allowRoles('ADMIN', 'MANAGER'
         const q = questions.get(answer.questionId);
         if (q?.type === 'NPS' && typeof answer.value === 'number') { scores.push(answer.value); bucket.npsScores.push(answer.value); }
         if (q?.countsForSatisfaction) {
-          const positive = q.type === 'FACES' ? answer.value === 'satisfeito' : q.type === 'SCALE' ? typeof answer.value === 'number' && answer.value >= 7 : false;
+          const positive = q.type === 'FACES' ? answer.value === 'satisfeito' : q.type === 'SCALE' ? typeof answer.value === 'number' && answer.value >= (q.options?.length === 5 ? 4 : 7) : false;
           satisfaction.total += 1; bucket.satisfactionCount += 1;
           if (positive) { satisfaction.positive += 1; bucket.positive += 1; }
         }
@@ -236,7 +236,9 @@ app.get('/api/dashboard/indicadores', requireUser, allowRoles('ADMIN', 'MANAGER'
     const nps = calculateNps(scores);
     const ticketFilter = selectedSector ? { sectorId: selectedSector } : {};
     const [open, resolved] = await Promise.all([prisma.ticket.count({ where: { status: { in: ['OPEN', 'IN_PROGRESS', 'WAITING'] }, ...ticketFilter } }), prisma.ticket.count({ where: { status: 'RESOLVED', ...ticketFilter } })]);
-    res.json({ nps, satisfaction: satisfaction.total ? Math.round(satisfaction.positive / satisfaction.total * 100) : null, satisfactionResponses: satisfaction.total, completed: sessions.length, npsResponses: scores.length, openTickets: open, resolvedTickets: resolved, sectors: [...buckets.values()].map(b => ({ sectorId: b.sectorId, name: b.name, completed: b.completed, nps: calculateNps(b.npsScores), satisfaction: b.satisfactionCount ? Math.round(b.positive / b.satisfactionCount * 100) : null })), updatedAt: new Date().toISOString() });
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const distribution = scores.length ? { promoters: Math.round(scores.filter(x => x >= 9).length / scores.length * 100), neutrals: Math.round(scores.filter(x => x >= 7 && x <= 8).length / scores.length * 100), detractors: Math.round(scores.filter(x => x <= 6).length / scores.length * 100) } : null;
+    res.json({ nps, satisfaction: satisfaction.total ? Math.round(satisfaction.positive / satisfaction.total * 100) : null, satisfactionResponses: satisfaction.total, completedToday: sessions.filter(s => s.completedAt >= today).length, distribution, completed: sessions.length, npsResponses: scores.length, openTickets: open, resolvedTickets: resolved, sectors: [...buckets.values()].map(b => ({ sectorId: b.sectorId, name: b.name, completed: b.completed, nps: calculateNps(b.npsScores), satisfaction: b.satisfactionCount ? Math.round(b.positive / b.satisfactionCount * 100) : null })), updatedAt: new Date().toISOString() });
   } catch (e) { next(e); }
 });
 app.get('/api/dashboard/evolucao', requireUser, allowRoles('ADMIN', 'MANAGER', 'VIEWER'), async (req, res, next) => {
@@ -257,13 +259,16 @@ app.get('/api/dashboard/evolucao', requireUser, allowRoles('ADMIN', 'MANAGER', '
 app.get('/api/tvwall/indicadores', async (_req, res, next) => {
   try {
     const day = new Date(); day.setHours(0, 0, 0, 0);
-    const sessions = await prisma.surveySession.findMany({ where: { status: 'COMPLETED' }, include: { answers: true }, take: 5000 });
+    const sessions = await prisma.surveySession.findMany({ where: { status: 'COMPLETED' }, include: { answers: true, sector: { select: { id: true, name: true } } }, take: 5000 });
     const scores = sessions.flatMap(s => s.answers.filter(a => s.configSnapshot.some(q => q.id === a.questionId && q.type === 'NPS') && typeof a.value === 'number').map(a => a.value));
     const nps = calculateNps(scores);
     const satisfactionAnswers = sessions.flatMap(s => s.answers.map(answer => ({ answer, question: s.configSnapshot.find(q => q.id === answer.questionId) })).filter(x => x.question?.countsForSatisfaction && ['FACES', 'SCALE'].includes(x.question.type)));
-    const positive = satisfactionAnswers.filter(({ answer, question }) => question.type === 'FACES' ? answer.value === 'satisfeito' : typeof answer.value === 'number' && answer.value >= 7).length;
+    const positive = satisfactionAnswers.filter(({ answer, question }) => question.type === 'FACES' ? answer.value === 'satisfeito' : typeof answer.value === 'number' && answer.value >= (question.options?.length === 5 ? 4 : 7)).length;
     const satisfaction = satisfactionAnswers.length ? Math.round(positive / satisfactionAnswers.length * 100) : null;
-    res.json({ nps, satisfaction, completedToday: sessions.filter(s => s.completedAt >= day).length, completedTotal: sessions.length, updatedAt: new Date().toISOString() });
+    const distribution = scores.length ? { promoters: Math.round(scores.filter(x => x >= 9).length / scores.length * 100), neutrals: Math.round(scores.filter(x => x >= 7 && x <= 8).length / scores.length * 100), detractors: Math.round(scores.filter(x => x <= 6).length / scores.length * 100) } : null;
+    const sectors = [...new Set(sessions.map(s => s.sectorId))].map(sectorId => { const group = sessions.filter(s => s.sectorId === sectorId); const groupScores = group.flatMap(s => s.answers.filter(a => s.configSnapshot.some(q => q.id === a.questionId && q.type === 'NPS') && typeof a.value === 'number').map(a => a.value)); return { sectorId, name: group[0].sector.name, nps: calculateNps(groupScores) }; });
+    const openTickets = await prisma.ticket.count({ where: { status: { in: ['OPEN', 'IN_PROGRESS', 'WAITING'] } } });
+    res.json({ nps, satisfaction, completedToday: sessions.filter(s => s.completedAt >= day).length, completedTotal: sessions.length, openTickets, sectors, distribution, updatedAt: new Date().toISOString() });
   } catch (e) { next(e); }
 });
 
