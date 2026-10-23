@@ -1,9 +1,86 @@
-import { useState } from 'react';
-import { api } from './api.js';
+import { useState } from "react";
+import { api } from "./api.js";
 
 export default function QuestionRule({ question, onSaved }) {
   const current = question.rules?.[0];
-  const [open, setOpen] = useState(false); const [busy, setBusy] = useState(false); const [error, setError] = useState('');
-  async function save(e) { e.preventDefault(); const f = new FormData(e.currentTarget); setBusy(true); setError(''); try { await api.put(`/perguntas/${question.id}/regra-ouvidoria`, { enabled: f.get('enabled') === 'on', operator: f.get('operator'), threshold: Number(f.get('threshold')), message: f.get('message') }); setOpen(false); onSaved(); } catch (err) { setError(err.response?.data?.error || 'Somente administradores podem alterar esta regra.'); } finally { setBusy(false); } }
-  return <div className="rule-editor"><button className="small-action" onClick={() => setOpen(v => !v)}>{current ? 'Regra de contato' : 'Configurar Ouvidoria'}</button>{open && <form className="rule-form" onSubmit={save}><label><input name="enabled" type="checkbox" defaultChecked={current?.enabled ?? true}/> Mostrar oferta conforme limite</label><label>Condição<select name="operator" defaultValue={current?.operator || 'LT'}><option value="LT">Menor que</option><option value="LTE">Menor ou igual</option><option value="EQ">Igual a</option></select></label><label>Limite<input name="threshold" type="number" min="0" max="10" defaultValue={current?.threshold ?? 7} required/></label><label>Mensagem<textarea name="message" defaultValue={current?.message || 'Sentimos muito que sua experiência não tenha sido a ideal. Gostaria que nossa Ouvidoria entrasse em contato com você?'} rows="3" required/></label>{error && <span className="alert">{error}</span>}<button className="button primary" disabled={busy}>{busy ? 'Salvando…' : 'Salvar regra'}</button></form>}</div>;
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  async function save(e) {
+    e.preventDefault();
+    const f = new FormData(e.currentTarget);
+    setBusy(true);
+    setError("");
+    try {
+      await api.put(`/perguntas/${question.id}/regra-ouvidoria`, {
+        enabled: f.get("enabled") === "on",
+        operator: f.get("operator"),
+        threshold: Number(f.get("threshold")),
+        message: f.get("message"),
+      });
+      setOpen(false);
+      onSaved();
+    } catch (err) {
+      setError(
+        err.response?.data?.error ||
+          "Somente administradores podem alterar esta regra.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="rule-editor">
+      <button className="small-action" onClick={() => setOpen((v) => !v)}>
+        {current ? "Regra de contato" : "Configurar Ouvidoria"}
+      </button>
+      {open && (
+        <form className="rule-form" onSubmit={save}>
+          <label>
+            <input
+              name="enabled"
+              type="checkbox"
+              defaultChecked={current?.enabled ?? true}
+            />{" "}
+            Mostrar oferta conforme limite
+          </label>
+          <label>
+            Condição
+            <select name="operator" defaultValue={current?.operator || "LT"}>
+              <option value="LT">Menor que</option>
+              <option value="LTE">Menor ou igual</option>
+              <option value="EQ">Igual a</option>
+            </select>
+          </label>
+          <label>
+            Limite
+            <input
+              name="threshold"
+              type="number"
+              min="0"
+              max="10"
+              defaultValue={current?.threshold ?? 7}
+              required
+            />
+          </label>
+          <label>
+            Mensagem
+            <textarea
+              name="message"
+              defaultValue={
+                current?.message ||
+                "Sentimos muito que sua experiência não tenha sido a ideal. Gostaria que nossa Ouvidoria entrasse em contato com você?"
+              }
+              rows="3"
+              required
+            />
+          </label>
+          {error && <span className="alert">{error}</span>}
+          <button className="button primary" disabled={busy}>
+            {busy ? "Salvando…" : "Salvar regra"}
+          </button>
+        </form>
+      )}
+    </div>
+  );
 }
