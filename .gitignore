@@ -1,0 +1,24 @@
+# Dependências
+node_modules/
+
+# Variáveis de ambiente (nunca enviar credenciais)
+.env
+.env.*
+!.env.example
+
+# Builds e relatórios de teste
+dist/
+build/
+coverage/
+
+# Logs
+*.log
+logs/
+
+# Arquivos do sistema operacional
+.DS_Store
+Thumbs.db
+
+# Configurações pessoais de editor
+.vscode/
+.idea/
