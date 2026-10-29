@@ -1,1 +1,7 @@
-console.log('VivaCare backend: configuração do TypeScript funcionando.');
+import { app } from './app.js';
+
+const port = Number(process.env.PORT ?? 3000);
+
+app.listen(port, () => {
+  console.log(`VivaCare backend ouvindo na porta ${port}`);
+});
