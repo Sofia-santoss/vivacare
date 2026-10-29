@@ -1,0 +1,1 @@
+console.log('VivaCare backend: configuração do TypeScript funcionando.');

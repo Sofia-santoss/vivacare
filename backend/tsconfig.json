@@ -1,0 +1,31 @@
+{
+  // Configuração do TypeScript para o backend do VivaCare
+  "compilerOptions": {
+    // Organização dos arquivos
+    "rootDir": "./src",
+    "outDir": "./dist",
+
+    // Ambiente: Node.js moderno, sem tipos de navegador
+    "module": "nodenext",
+    "target": "esnext",
+    "lib": ["esnext"],
+    "types": ["node"],
+
+    // Facilita depuração: mostra o erro na linha do .ts
+    "sourceMap": true,
+
+    // Verificações de qualidade
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+
+    // Módulos
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "noUncheckedSideEffectImports": true,
+    "moduleDetection": "force",
+    "skipLibCheck": true
+  },
+  "include": ["src"]
+}
