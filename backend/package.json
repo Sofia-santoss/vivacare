@@ -10,7 +10,8 @@
     "build": "tsc",
     "start": "node --env-file-if-exists=.env dist/index.js",
     "typecheck": "tsc --noEmit",
-    "db:check": "tsx --env-file-if-exists=.env src/db/verificar.ts"
+    "db:check": "tsx --env-file-if-exists=.env src/db/verificar.ts",
+    "test": "vitest run"
   },
   "license": "UNLICENSED",
   "dependencies": {
