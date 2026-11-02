@@ -1,7 +1,9 @@
 import { app } from './app.js';
+import { env } from './config/env.js';
 
-const port = Number(process.env.PORT ?? 3000);
-
-app.listen(port, () => {
-  console.log(`VivaCare backend ouvindo na porta ${port}`);
+app.listen(env.port, () => {
+  console.log(`VivaCare backend ouvindo na porta ${env.port}`);
+  console.log(
+    `Banco configurado: ${env.db.name} em ${env.db.host}:${env.db.port} (usuário ${env.db.user})`,
+  );
 });
