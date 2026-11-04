@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: Inter, system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+
+  /* Cores medidas do quadro "Design System" do Figma */
+  --color-vc-escuro: #3d0a08;
+  --color-vc-marca: #e0302a;
+  --color-vc-claro: #f47c78;
+  --color-vc-superficie: #ffffff;
+  --color-vc-fundo: #fdf5f5;
+  --color-vc-texto: #2a0806;
+  --color-vc-sucesso: #14875c;
+  --color-vc-atencao: #b66b05;
+  --color-vc-erro: #8b1a1a;
+
+  /* Botão principal: cor dos mockups do Figma */
+  --color-vc-botao: #c8102e;
+  /* Hover e pressed: derivados (não vêm do Figma) */
+  --color-vc-botao-hover: #b00e29;
+  --color-vc-botao-pressed: #960c23;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-vc-fundo);
+    color: var(--color-vc-texto);
+    font-size: 16px;
+  }
+}
