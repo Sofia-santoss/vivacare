@@ -1,3 +1,6 @@
+import { useState } from 'react';
+import { Button } from './components/Button';
+
 const cores = [
   { nome: 'Vermelho institucional escuro', classe: 'bg-vc-escuro', hex: '#3D0A08' },
   { nome: 'Vermelho primário FHDOD', classe: 'bg-vc-marca', hex: '#E0302A' },
@@ -11,19 +14,29 @@ const cores = [
 ];
 
 export function App() {
+  const [enviando, setEnviando] = useState(false);
+
+  // Só para demonstração: simula um envio de 2 segundos.
+  function simularEnvio() {
+    setEnviando(true);
+    window.setTimeout(() => setEnviando(false), 2000);
+  }
+
   return (
     <main className="min-h-screen p-6">
       <h1 className="text-[32px] font-bold">VivaCare</h1>
-      <p className="mt-2 text-base">
-        Base do frontend funcionando. Cores medidas do protótipo do Figma.
-      </p>
+      <p className="mt-2 text-base">Catálogo provisório: botões e cores do protótipo do Figma.</p>
 
-      <button
-        type="button"
-        className="mt-6 h-14 w-full max-w-sm rounded-xl bg-vc-botao px-6 text-base font-semibold text-white hover:bg-vc-botao-hover active:bg-vc-botao-pressed focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-vc-marca"
-      >
-        Começar avaliação
-      </button>
+      <section className="mt-8 max-w-sm space-y-3">
+        <h2 className="text-2xl font-bold">Botões</h2>
+        <Button>Ação principal</Button>
+        <Button variante="secundario">Ação secundária</Button>
+        <Button disabled>Ação indisponível</Button>
+        <Button processando>Enviar</Button>
+        <Button processando={enviando} onClick={simularEnvio}>
+          Testar envio (2 segundos)
+        </Button>
+      </section>
 
       <ul className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
         {cores.map((cor) => (

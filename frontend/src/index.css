@@ -14,11 +14,15 @@
   --color-vc-atencao: #b66b05;
   --color-vc-erro: #8b1a1a;
 
-  /* Botão principal: cor dos mockups do Figma */
+  /* Botão principal: cor dos mockups e do quadro "Componentes" do Figma */
   --color-vc-botao: #c8102e;
   /* Hover e pressed: derivados (não vêm do Figma) */
   --color-vc-botao-hover: #b00e29;
   --color-vc-botao-pressed: #960c23;
+
+  /* Botão indisponível: quadro "Componentes" e mockups do Figma */
+  --color-vc-desabilitado: #d8e0e8;
+  --color-vc-desabilitado-texto: #5d6b7d;
 }
 
 @layer base {
