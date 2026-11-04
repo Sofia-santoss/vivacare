@@ -1,0 +1,25 @@
+{
+  // Configuração do TypeScript para o frontend do VivaCare (React + Vite)
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "types": ["vite/client"],
+
+    // O Vite compila o código; o TypeScript só verifica os tipos
+    "noEmit": true,
+
+    // Verificações de qualidade
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "skipLibCheck": true
+  },
+  "include": ["src", "vite.config.ts"]
+}
