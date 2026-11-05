@@ -98,3 +98,74 @@ textarea { min-height: 100px; resize: vertical; }
 .page-foot { margin: 9px 0 0; color: #9a8584; font-size: 10px; }
 @media (max-height: 700px) { .page { justify-content: flex-start; } .survey { min-height: 640px; } }
 @media (min-width: 700px) { .survey { min-height: 780px; } }
+
+/* Gestão: estrutura e estados vazios do painel de referência */
+.staff-link { align-self: center; margin-top: 14px; border: 0; background: none; color: #9d2028; text-decoration: underline; font-size: 11px; }
+.management-page { min-height: 100vh; background: #fdf5f5; color: #2a0806; }
+.management-topbar { height: 66px; display: flex; justify-content: space-between; align-items: center; padding: 0 28px; border-bottom: 1px solid #e9e3e4; background: white; }
+.manager { display: flex; align-items: center; gap: 9px; }
+.manager > span:nth-child(2) { display: grid; gap: 2px; font-size: 11px; }
+.manager small { color: #77808d; font-size: 9px; }
+.manager-avatar { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; background: #fde8e9; color: #a82832; font-weight: 700; }
+.manager button { border: 0; background: none; color: #667085; }
+.management-layout { min-height: calc(100vh - 66px); display: grid; grid-template-columns: 205px minmax(0,1fr); }
+.sidebar { display: flex; flex-direction: column; gap: 12px; padding: 22px 13px; background: #260705; color: white; }
+.sidebar-title { padding: 0 12px 14px; color: #f47c78; font-size: 12px; font-weight: 750; }
+.sidebar nav { display: grid; gap: 4px; }
+.sidebar nav button, .return-survey { display: flex; align-items: center; gap: 11px; min-height: 38px; padding: 0 11px; border: 0; border-radius: 7px; background: transparent; color: #f2d9d8; text-align: left; font-size: 12px; }
+.sidebar nav button.active { background: #8f1521; color: white; }
+.sidebar nav button span { width: 15px; text-align: center; }
+.return-survey { margin-top: auto; color: #f47c78; font-size: 10px; }
+.dashboard-content { width: min(100%, 1320px); margin: 0 auto; padding: 27px clamp(18px,3vw,42px) 42px; }
+.dashboard-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.dashboard-heading .eyebrow { margin-bottom: 5px; }
+.dashboard-heading h1 { margin: 0; font-size: 25px; }
+.dashboard-heading p { margin: 5px 0 0; color: #77808d; font-size: 11px; }
+.refresh-label { padding: 7px 10px; border-radius: 99px; background: #fde8e9; color: #a82832; font-size: 9px; }
+.filter-bar { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)) auto; align-items: end; gap: 10px; margin-bottom: 15px; padding: 13px; border: 1px solid #e5dfe0; border-radius: 12px; background: white; }
+.filter-bar label { display: grid; gap: 6px; color: #475467; font-size: 10px; font-weight: 650; }
+.filter-bar select { min-width: 0; height: 38px; border: 1px solid #d8dfe7; border-radius: 7px; padding: 0 9px; background: white; color: #344054; font-size: 11px; }
+.filter-button { min-height: 38px; border-radius: 7px; font-size: 11px; }
+.metric-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 11px; margin-bottom: 13px; }
+.dashboard-card { border: 1px solid #e4dfe0; border-radius: 11px; background: white; box-shadow: 0 3px 11px #2a08060a; }
+.metric-card { min-height: 112px; padding: 14px; }
+.metric-top { display: flex; align-items: center; justify-content: space-between; color: #526071; font-size: 10px; }
+.metric-icon { width: 25px; height: 25px; display: grid; place-items: center; border-radius: 7px; background: #fde8e9; color: #c8102e; }
+.metric-card > strong { display: block; margin: 8px 0 4px; color: #32120f; font-size: 25px; }
+.metric-card > small { color: #8a94a3; font-size: 9px; }
+.chart-grid { display: grid; grid-template-columns: 1.25fr 1fr; gap: 11px; }
+.chart-card { min-height: 190px; padding: 13px 15px; }
+.card-title { display: flex; justify-content: space-between; align-items: flex-start; }
+.card-title div { display: grid; gap: 4px; }
+.card-title strong { font-size: 11px; }
+.card-title small { color: #8a94a3; font-size: 9px; }
+.card-title button { border: 0; background: none; color: #667085; }
+.empty-chart { position: relative; height: 125px; margin-top: 13px; border-bottom: 1px solid #e8edf2; background: repeating-linear-gradient(to bottom,transparent 0,transparent 29px,#edf1f4 30px); }
+.empty-chart i { position: absolute; bottom: -3px; width: 5px; height: 5px; border-radius: 50%; background: #e0302a; }
+.empty-chart i:nth-child(1) { left: 5%; }.empty-chart i:nth-child(2) { left: 50%; }.empty-chart i:nth-child(3) { right: 5%; }
+.empty-chart-message { position: absolute; inset: 0; display: grid; place-items: center; color: #98a2b3; font-size: 10px; }
+.empty-bars { height: 125px; display: flex; align-items: center; gap: 9px; margin-top: 13px; padding: 0 6px; border-bottom: 1px solid #e8edf2; }
+.empty-bars span { flex: 1; height: 3px; border-radius: 4px; background: #f0dadd; }
+.empty-bars small { color: #98a2b3; font-size: 9px; }
+.empty-period { display: flex; flex-direction: column; align-items: center; margin-top: 11px; padding: 19px; text-align: center; }
+.empty-icon { color: #a7b3c0; font-size: 26px; }
+.empty-period strong, .section-placeholder h2 { margin: 7px 0 0; font-size: 12px; }
+.empty-period p, .section-placeholder p { max-width: 400px; margin: 5px 0 8px; color: #77808d; font-size: 10px; line-height: 1.5; }
+.empty-period > span { color: #a82832; font-size: 9px; }
+.section-placeholder { min-height: 250px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+@media (max-width: 900px) { .management-layout { grid-template-columns: 170px minmax(0,1fr); }.metric-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 620px) {
+  .management-topbar { height: 58px; padding: 0 14px; }
+  .management-layout { min-height: calc(100vh - 58px); display: block; }
+  .sidebar { padding: 8px; }
+  .sidebar-title, .return-survey { display: none; }
+  .sidebar nav { display: flex; overflow-x: auto; gap: 4px; }
+  .sidebar nav button { min-width: max-content; min-height: 36px; padding: 0 9px; font-size: 10px; }
+  .sidebar nav button span { display: none; }
+  .dashboard-content { padding: 20px 12px; }
+  .filter-bar { grid-template-columns: 1fr 1fr; }
+  .metric-grid { gap: 7px; }
+  .metric-card { min-height: 100px; padding: 11px; }
+  .chart-grid { grid-template-columns: 1fr; }
+  .chart-card { min-height: 170px; }
+}

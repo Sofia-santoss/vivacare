@@ -1,4 +1,5 @@
 ﻿import { useState } from 'react';
+import { Dashboard } from './Dashboard';
 
 type Screen = 'access' | 'welcome' | 'ratings' | 'nps' | 'comment' | 'care' | 'contact' | 'done';
 
@@ -19,6 +20,7 @@ function Brand() {
 
 export function App() {
   const [screen, setScreen] = useState<Screen>('access');
+  const [showDashboard, setShowDashboard] = useState(false);
   const [ratingIndex, setRatingIndex] = useState(0);
   const [answers, setAnswers] = useState<number[]>([]);
   const [nps, setNps] = useState<number | null>(null);
@@ -45,6 +47,8 @@ export function App() {
     go('done');
   };
 
+  if (showDashboard) return <Dashboard onBack={() => setShowDashboard(false)} />;
+
   return <main className="page">
     <section className="survey" aria-live="polite">
       <header className="topbar"><Brand /><span className="survey-name">Pesquisa — Recepção</span></header>
@@ -58,6 +62,7 @@ export function App() {
         <div className="info-card"><span className="info-icon">▣</span><span><small>SETOR IDENTIFICADO</small><strong>Pesquisa — Recepção</strong></span></div>
         <div className="privacy-card"><span>♧</span><p>Participar é voluntário. Você pode parar a qualquer momento.</p></div>
         <button className="primary bottom-action" onClick={() => go('welcome')}>Começar avaliação</button>
+        <button className="staff-link" onClick={() => setShowDashboard(true)}>Acesso da equipe</button>
       </div>}
       {screen === 'welcome' && <div className="screen">
         <div className="eyebrow">BOAS-VINDAS</div><h1>Sua opinião ajuda a melhorar nosso atendimento.</h1>
