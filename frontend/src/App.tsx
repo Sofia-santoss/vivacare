@@ -43,7 +43,7 @@ export function App() {
   const finishRating = (value: number) => {
     setAnswers((current) => { const updated = [...current]; updated[ratingIndex] = value; return updated; });
     setError('');
-    if (ratingIndex === 0 && value === 3) { setCareSource('rating'); go('care'); }
+    if (ratingIndex === 0 && value <= 3) { setCareSource('rating'); go('care'); }
   };
   const declineCare = () => {
     setWantsContact(false);
@@ -101,13 +101,13 @@ export function App() {
       </div>}
       {screen === 'care' && <div className="screen">
         <div className="eyebrow">CUIDADO E ESCUTA</div><h1>Podemos entender melhor o que aconteceu?</h1><div className="care-illustration" aria-hidden="true">♡</div>
-        <p className="helper">{careSource === 'rating' ? 'Você avaliou como regular. Gostaria de conversar com a Ouvidoria e contar o que poderia ter sido melhor? A escolha é sua e não altera seu atendimento.' : 'Se você quiser, a Ouvidoria pode entrar em contato para ouvir seu relato. A escolha é sua e não altera seu atendimento.'}</p>
+        <p className="helper">{careSource === 'rating' ? 'Você avaliou a Recepção como ' + (scaleLabels[(answers[0] ?? 3) - 1] ?? 'Regular').toLowerCase() + '. Gostaria de conversar com a Ouvidoria e contar o que poderia ter sido melhor? A escolha é sua e não altera seu atendimento.' : 'Se você quiser, a Ouvidoria pode entrar em contato para ouvir seu relato. A escolha é sua e não altera seu atendimento.'}</p>
         <div className="button-stack"><button className="primary" onClick={() => { setWantsContact(true); go('contact'); }}>Sim, quero contato</button><button className="secondary" onClick={declineCare}>Não, obrigado</button></div>
       </div>}
       {screen === 'contact' && <div className="screen">
         <div className="eyebrow">CONSENTIMENTO · DADOS PROTEGIDOS</div><h1>Como podemos falar com você?</h1>
         <label className="field-label" htmlFor="phone">Telefone ou celular para retorno</label><input id="phone" type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Digite seu telefone ou celular" />
-        <label className="field-label" htmlFor="statement">Conte sua experiência</label><textarea id="statement" value={statement} onChange={(e) => setStatement(e.target.value)} placeholder="Conte o que aconteceu e por que sua experiência foi regular." maxLength={1000} />
+        <label className="field-label" htmlFor="statement">Conte sua experiência</label><textarea id="statement" value={statement} onChange={(e) => setStatement(e.target.value)} placeholder="Conte o que aconteceu durante o atendimento." maxLength={1000} />
         <label className="consent"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} /><span>Li e concordo com o termo de consentimento.</span></label>
         <button className="text-link" type="button" onClick={() => setError('O termo de privacidade será apresentado pela instituição antes do envio.')}>Consultar termo de privacidade</button>
         <p className="integration-note">O envio do relato será ativado quando a Ouvidoria estiver conectada ao sistema.</p>
