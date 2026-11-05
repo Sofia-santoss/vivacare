@@ -198,3 +198,5 @@ textarea { min-height: 100px; resize: vertical; }
 .case-actions button { min-height: 35px; border-radius: 7px; padding: 0 11px; font-size: 10px; }
 @media (max-width: 900px) { .ombudsman-filters { grid-template-columns: repeat(3,minmax(0,1fr)); }.ombudsman-filters .filter-button { min-height: 36px; } }
 @media (max-width: 620px) { .ombudsman-heading { align-items: flex-start; }.ombudsman-heading p { max-width: 300px; }.ombudsman-heading .export-button { font-size: 0; }.ombudsman-heading .export-button:first-letter { font-size: 14px; }.ombudsman-filters { grid-template-columns: 1fr 1fr; }.case-actions { display: grid; grid-template-columns: 1fr; }.case-actions button { width: 100%; } }
+
+.integration-note { margin: 10px 0; color: #77808d; font-size: 10px; line-height: 1.4; }

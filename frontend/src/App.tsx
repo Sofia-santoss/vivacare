@@ -1,6 +1,7 @@
 ﻿import { useState } from 'react';
 import { Dashboard } from './Dashboard';
 
+type CareSource = 'rating' | 'nps';
 type Screen = 'access' | 'welcome' | 'ratings' | 'nps' | 'comment' | 'care' | 'contact' | 'done';
 
 const ratings = [
@@ -26,6 +27,7 @@ export function App() {
   const [nps, setNps] = useState<number | null>(null);
   const [comment, setComment] = useState('');
   const [wantsContact, setWantsContact] = useState<boolean | null>(null);
+  const [careSource, setCareSource] = useState<CareSource>('nps');
   const [phone, setPhone] = useState('');
   const [statement, setStatement] = useState('');
   const [consent, setConsent] = useState(false);
@@ -41,10 +43,18 @@ export function App() {
   const finishRating = (value: number) => {
     setAnswers((current) => { const updated = [...current]; updated[ratingIndex] = value; return updated; });
     setError('');
+    if (ratingIndex === 0 && value === 3) { setCareSource('rating'); go('care'); }
+  };
+  const declineCare = () => {
+    setWantsContact(false);
+    if (careSource === 'rating') { setRatingIndex(1); go('ratings'); }
+    else go('done');
   };
   const submitContact = () => {
+    if (!statement.trim()) { setError('Conte brevemente sua experiência para continuar.'); return; }
     if (!phone.trim() || !consent) { setError('Informe seu telefone e aceite o termo de consentimento.'); return; }
-    go('done');
+    if (careSource === 'rating') { setRatingIndex(1); go('ratings'); }
+    else go('done');
   };
 
   if (showDashboard) return <Dashboard onBack={() => setShowDashboard(false)} />;
@@ -87,24 +97,25 @@ export function App() {
         <div className="eyebrow">COMENTÁRIO OPCIONAL</div><button className="skip-link" onClick={() => go(nps !== null && nps < 7 ? 'care' : 'done')}>Pular</button>
         <h1>Obrigado pela sua avaliação!</h1><div className="success-card"><span>✓</span><div><strong>Avaliação registrada</strong><p>Que bom saber que você nos contou sobre seu atendimento.</p></div></div>
         <label className="field-label" htmlFor="comment">Quer deixar um comentário?</label><textarea id="comment" value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Conte o que mais gostou. Esta etapa é opcional." maxLength={500} />
-        <button className="primary bottom-action" onClick={() => go(nps !== null && nps < 7 ? 'care' : 'done')}>Continuar</button>
+        <button className="primary bottom-action" onClick={() => { if (nps !== null && nps < 7) { setCareSource('nps'); go('care'); } else go('done'); }}>Continuar</button>
       </div>}
       {screen === 'care' && <div className="screen">
         <div className="eyebrow">CUIDADO E ESCUTA</div><h1>Podemos entender melhor o que aconteceu?</h1><div className="care-illustration" aria-hidden="true">♡</div>
-        <p className="helper">Se você quiser, a Ouvidoria pode entrar em contato para ouvir seu relato. A escolha é sua e não altera seu atendimento.</p>
-        <div className="button-stack"><button className="primary" onClick={() => { setWantsContact(true); go('contact'); }}>Sim, quero contato</button><button className="secondary" onClick={() => { setWantsContact(false); go('done'); }}>Não, obrigado</button></div>
+        <p className="helper">{careSource === 'rating' ? 'Você avaliou como regular. Gostaria de conversar com a Ouvidoria e contar o que poderia ter sido melhor? A escolha é sua e não altera seu atendimento.' : 'Se você quiser, a Ouvidoria pode entrar em contato para ouvir seu relato. A escolha é sua e não altera seu atendimento.'}</p>
+        <div className="button-stack"><button className="primary" onClick={() => { setWantsContact(true); go('contact'); }}>Sim, quero contato</button><button className="secondary" onClick={declineCare}>Não, obrigado</button></div>
       </div>}
       {screen === 'contact' && <div className="screen">
         <div className="eyebrow">CONSENTIMENTO · DADOS PROTEGIDOS</div><h1>Como podemos falar com você?</h1>
-        <label className="field-label" htmlFor="phone">Telefone ou celular</label><input id="phone" type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(11) 98888-1234" />
-        <label className="field-label" htmlFor="statement">Manifestação opcional</label><textarea id="statement" value={statement} onChange={(e) => setStatement(e.target.value)} placeholder="Conte brevemente o que aconteceu." maxLength={1000} />
+        <label className="field-label" htmlFor="phone">Telefone ou celular para retorno</label><input id="phone" type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Digite seu telefone ou celular" />
+        <label className="field-label" htmlFor="statement">Conte sua experiência</label><textarea id="statement" value={statement} onChange={(e) => setStatement(e.target.value)} placeholder="Conte o que aconteceu e por que sua experiência foi regular." maxLength={1000} />
         <label className="consent"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} /><span>Li e concordo com o termo de consentimento.</span></label>
         <button className="text-link" type="button" onClick={() => setError('O termo de privacidade será apresentado pela instituição antes do envio.')}>Consultar termo de privacidade</button>
-        {error && <p className="error-message" role="alert">{error}</p>}<button className="primary bottom-action" onClick={submitContact}>Enviar manifestação</button>
+        <p className="integration-note">O envio do relato será ativado quando a Ouvidoria estiver conectada ao sistema.</p>
+        {error && <p className="error-message" role="alert">{error}</p>}<button className="primary bottom-action" onClick={submitContact}>{careSource === 'rating' ? 'Continuar avaliação' : 'Concluir'}</button>
       </div>}
       {screen === 'done' && <div className="screen done-screen">
         <div className="eyebrow">PESQUISA CONCLUÍDA</div><div className="done-icon">✓</div><h1>Obrigado por participar!</h1>
-        <p className="helper">{wantsContact ? 'Sua manifestação foi registrada. A Ouvidoria poderá entrar em contato.' : 'Sua escolha foi respeitada e nenhum dado de contato foi solicitado.'}</p>
+        <p className="helper">{wantsContact ? 'Você autorizou a Ouvidoria a entrar em contato. O envio da manifestação ainda depende da integração com o serviço.' : 'Sua escolha foi respeitada e nenhum dado de contato foi solicitado.'}</p>
         <p className="muted">Sua opinião foi registrada e vai nos ajudar a melhorar o atendimento.</p><button className="primary bottom-action" onClick={() => go('access')}>Encerrar</button>
       </div>}
     </section>
