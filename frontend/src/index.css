@@ -12,6 +12,10 @@
   --color-vc-atencao: #b66b05;
   --color-vc-erro: #8b1a1a;
   --color-vc-botao: #c8102e;
+  --color-vc-botao-hover: #ad0e28;
+  --color-vc-botao-pressed: #960c23;
+  --color-vc-desabilitado: #d8e0e8;
+  --color-vc-desabilitado-texto: #5d6b7d;
 }
 
 * { box-sizing: border-box; }
