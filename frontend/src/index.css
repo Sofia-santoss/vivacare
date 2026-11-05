@@ -274,6 +274,13 @@ textarea { min-height: 100px; resize: vertical; }
 .management-empty > span { color: #a7b3c0; font-size: 30px; }
 .management-empty strong { margin-top: 8px; color: #344054; font-size: 12px; }
 .management-empty p { max-width: 390px; margin: 6px 0 0; color: #8a94a3; font-size: 10px; line-height: 1.5; }
+.draft-label { margin: 0; color: #8a94a3; font-size: 10px; }
+.management-records-wrap { overflow-x: auto; }
+.management-records { width: 100%; min-width: 580px; border-collapse: collapse; }
+.management-records th { padding: 11px 13px; background: #f5f7f9; color: #697586; text-align: left; font-size: 10px; font-weight: 700; }
+.management-records td { padding: 12px 13px; border-top: 1px solid #edf0f3; color: #344054; font-size: 11px; }
+.draft-status { padding: 4px 7px; border-radius: 99px; background: #fff4dc; color: #9b6800; font-size: 9px; }
+.row-action { border: 0; padding: 3px; background: none; color: #b31231; font-size: 10px; text-decoration: underline; }
 .settings-panel { display: grid; gap: 12px; padding: 18px; }
 .settings-option { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 14px 0; border-top: 1px solid #edf0f3; color: #344054; }
 .settings-option span { display: grid; gap: 4px; }

@@ -15,6 +15,7 @@ const navigation = [
   { label: 'Configurações', icon: '⚙' },
 ];
 type Section = (typeof navigation)[number]['label'];
+type DraftRecord = { id: number; name: string; details: string; status: string };
 type DashboardProps = { onBack: () => void };
 
 export function Dashboard({ onBack }: DashboardProps) {
@@ -26,12 +27,24 @@ export function Dashboard({ onBack }: DashboardProps) {
   const [showTvWall, setShowTvWall] = useState(false);
   const [form, setForm] = useState<Section | null>(null);
   const [notice, setNotice] = useState('');
+  const [drafts, setDrafts] = useState<Record<string, DraftRecord[]>>({});
 
   const saveDraft = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!form) return;
+    const values = new FormData(event.currentTarget);
+    const name = String(values.get('name') ?? '').trim();
+    const details = [values.get('email'), values.get('sector'), values.get('type'), values.get('role')]
+      .map((value) => String(value ?? '').trim())
+      .filter(Boolean)
+      .join(' · ');
+    const status = String(values.get('status') ?? (values.get('active') ? 'Ativo' : 'Rascunho'));
+    setDrafts((current) => ({ ...current, [form]: [...(current[form] ?? []), { id: Date.now(), name, details, status }] }));
     setForm(null);
-    setNotice('Dados validados nesta tela. Nada foi salvo no sistema porque a API ainda não está conectada.');
+    setNotice('Rascunho adicionado somente a esta prévia. Ele não foi enviado ao servidor e será perdido ao recarregar a página.');
   };
+
+  const removeDraft = (section: Section, id: number) => setDrafts((current) => ({ ...current, [section]: (current[section] ?? []).filter((item) => item.id !== id) }));
 
   if (showTvWall) return <TvWall onExit={() => setShowTvWall(false)} />;
 
@@ -54,7 +67,7 @@ export function Dashboard({ onBack }: DashboardProps) {
           <label>Turno<select value={shift} onChange={(e) => setShift(e.target.value)}><option>Todos os turnos</option><option>Manhã</option><option>Tarde</option><option>Noite</option></select></label>
           <Button className="filter-button" onClick={() => { setApplied(true); setNotice('Filtros prontos. Os resultados aparecerão quando a API estiver conectada.'); }}>Aplicar filtros</Button>
         </div>}
-        {active === 'Ouvidoria' ? <Ouvidoria /> : active === 'Visão geral' ? <Overview period={period} sector={sector} shift={shift} applied={applied} /> : active === 'Indicadores' ? <Indicators period={period} /> : active === 'Pesquisas' || active === 'Perguntas' || active === 'Setores' || active === 'Usuários' ? <ListSection title={active === 'Perguntas' ? 'Perguntas do setor' : active === 'Usuários' ? 'Usuários e permissões' : active} description={active === 'Perguntas' ? 'Gerencie perguntas e sua obrigatoriedade na pesquisa.' : active === 'Usuários' ? 'Acesso administrativo por perfil e setor.' : active === 'Setores' ? 'Setores associados às pesquisas da instituição.' : 'Pesquisas configuradas para os setores do hospital.'} onCreate={() => setForm(active)} /> : <Settings onSave={() => setNotice('Preferências atualizadas apenas nesta visualização. A API ainda não está conectada.')} />}
+        {active === 'Ouvidoria' ? <Ouvidoria /> : active === 'Visão geral' ? <Overview period={period} sector={sector} shift={shift} applied={applied} /> : active === 'Indicadores' ? <Indicators period={period} /> : active === 'Pesquisas' || active === 'Perguntas' || active === 'Setores' || active === 'Usuários' ? <ListSection title={active === 'Perguntas' ? 'Perguntas do setor' : active === 'Usuários' ? 'Usuários e permissões' : active} description={active === 'Perguntas' ? 'Gerencie perguntas e sua obrigatoriedade na pesquisa.' : active === 'Usuários' ? 'Acesso administrativo por perfil e setor.' : active === 'Setores' ? 'Setores associados às pesquisas da instituição.' : 'Pesquisas configuradas para os setores do hospital.'} records={drafts[active] ?? []} onCreate={() => setForm(active)} onRemove={(id) => removeDraft(active, id)} /> : <Settings onSave={() => setNotice('Preferências atualizadas apenas nesta visualização. A API ainda não está conectada.')} />}
         {form && <FormDialog section={form} onClose={() => setForm(null)} onSubmit={saveDraft} />}
       </section>
     </div>
@@ -80,21 +93,21 @@ function Chart({ title, subtitle, kind }: { title: string; subtitle: string; kin
   return <article className="dashboard-card chart-card"><div className="card-title"><div><strong>{title}</strong><small>{subtitle}</small></div></div><div className={'empty-chart chart-' + kind} role="status"><span>Sem dados para exibir</span></div></article>;
 }
 
-function ListSection({ title, description, onCreate }: { title: string; description: string; onCreate: () => void }) {
+function ListSection({ title, description, records, onCreate, onRemove }: { title: string; description: string; records: DraftRecord[]; onCreate: () => void; onRemove: (id: number) => void }) {
   const action = title === 'Perguntas do setor' ? '＋ Nova pergunta' : title === 'Usuários e permissões' ? '＋ Novo usuário' : title === 'Setores' ? '＋ Novo setor' : '＋ Nova pesquisa';
-  return <section className="management-list-section"><div className="list-heading"><div><h2>{title}</h2><p>{description}</p></div><Button className="list-create-button" onClick={onCreate}>{action}</Button></div><div className="dashboard-card management-empty"><span aria-hidden="true">▱</span><strong>Nenhum registro carregado</strong><p>Não há conexão com a API para listar ou salvar dados nesta tela.</p></div></section>;
+  return <section className="management-list-section"><div className="list-heading"><div><h2>{title}</h2><p>{description}</p></div><Button className="list-create-button" onClick={onCreate}>{action}</Button></div>{records.length > 0 ? <><p className="draft-label">Rascunhos desta prévia · não enviados ao servidor</p><div className="dashboard-card management-records-wrap"><table className="management-records"><thead><tr><th>Nome</th><th>Detalhes</th><th>Status</th><th>Ação</th></tr></thead><tbody>{records.map((record) => <tr key={record.id}><td>{record.name}</td><td>{record.details || '—'}</td><td><span className="draft-status">{record.status}</span></td><td><button className="row-action" onClick={() => onRemove(record.id)}>Remover</button></td></tr>)}</tbody></table></div></> : <div className="dashboard-card management-empty"><span aria-hidden="true">▱</span><strong>Nenhum registro carregado</strong><p>Não há conexão com a API para listar dados. Os formulários criam apenas rascunhos locais.</p></div>}</section>;
 }
 
 function FormDialog({ section, onClose, onSubmit }: { section: Section; onClose: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void }) {
   const title = section === 'Perguntas' ? 'Nova pergunta' : section === 'Setores' ? 'Novo setor' : section === 'Usuários' ? 'Cadastrar usuário' : 'Nova pesquisa';
   const label = section === 'Perguntas' ? 'Texto da pergunta' : section === 'Setores' ? 'Nome do setor' : section === 'Usuários' ? 'Nome completo' : 'Nome da pesquisa';
   return <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><section className="dashboard-card form-dialog" role="dialog" aria-modal="true" aria-labelledby="form-dialog-title"><div className="dialog-heading"><div><div className="eyebrow">NOVO CADASTRO</div><h2 id="form-dialog-title">{title}</h2></div><button type="button" aria-label="Fechar" onClick={onClose}>×</button></div><form onSubmit={onSubmit}>
-    <label className="field-label">{label}<input required autoFocus placeholder={section === 'Perguntas' ? 'Ex.: Como foi o atendimento?' : 'Digite aqui'} /></label>
-    {(section === 'Perguntas' || section === 'Pesquisas') && <label className="field-label">Setor<select defaultValue=""><option value="" disabled>Selecione um setor</option><option>Recepção</option><option>Enfermagem</option><option>Pronto Atendimento</option><option>Internação</option><option>Farmácia</option></select></label>}
-    {section === 'Pesquisas' && <><label className="field-label">Apresentação para o paciente<textarea rows={3} placeholder="Explique brevemente o objetivo da pesquisa" /></label><label className="field-label">Status<select><option>Rascunho</option><option>Ativa</option><option>Pausada</option></select></label></>}
-    {section === 'Perguntas' && <><label className="field-label">Tipo de resposta<select><option>Escala de satisfação</option><option>Sim ou não</option><option>Comentário</option><option>NPS (0 a 10)</option></select></label><label className="field-label">Posição na pesquisa<input type="number" min="1" step="1" defaultValue="1" /></label><label className="form-check"><input type="checkbox" defaultChecked /><span>Resposta obrigatória</span></label><label className="form-check"><input type="checkbox" defaultChecked /><span>Pergunta ativa</span></label></>}
-    {section === 'Usuários' && <><label className="field-label">E-mail<input required type="email" placeholder="nome@hospital.org.br" /></label><label className="field-label">Setor<select defaultValue=""><option value="" disabled>Selecione um setor</option><option>Recepção</option><option>Enfermagem</option><option>Pronto Atendimento</option><option>Internação</option><option>Farmácia</option></select></label><label className="field-label">Perfil<select><option>Gestor de setor</option><option>Ouvidoria</option><option>Visualizador</option></select></label><label className="field-label">Status<select><option>Ativo</option><option>Inativo</option></select></label></>}
-    {section === 'Setores' && <label className="form-check"><input type="checkbox" defaultChecked /><span>Setor ativo</span></label>}
+    <label className="field-label">{label}<input name="name" required autoFocus placeholder={section === 'Perguntas' ? 'Ex.: Como foi o atendimento?' : 'Digite aqui'} /></label>
+    {(section === 'Perguntas' || section === 'Pesquisas' || section === 'Usuários') && <label className="field-label">Setor<select name="sector" required defaultValue=""><option value="" disabled>Selecione um setor</option><option>Recepção</option><option>Enfermagem</option><option>Pronto Atendimento</option><option>Internação</option><option>Farmácia</option></select></label>}
+    {section === 'Pesquisas' && <><label className="field-label">Apresentação para o paciente<textarea name="description" rows={3} placeholder="Explique brevemente o objetivo da pesquisa" /></label><label className="field-label">Status<select name="status"><option>Rascunho</option><option>Ativa</option><option>Pausada</option></select></label></>}
+    {section === 'Perguntas' && <><label className="field-label">Tipo de resposta<select name="type"><option>Escala de satisfação</option><option>Sim ou não</option><option>Comentário</option><option>NPS (0 a 10)</option></select></label><label className="field-label">Posição na pesquisa<input name="position" type="number" min="1" step="1" defaultValue="1" /></label><label className="form-check"><input name="required" type="checkbox" defaultChecked /><span>Resposta obrigatória</span></label><label className="form-check"><input name="active" type="checkbox" defaultChecked /><span>Pergunta ativa</span></label></>}
+    {section === 'Usuários' && <><label className="field-label">E-mail<input name="email" required type="email" placeholder="nome@hospital.org.br" /></label><label className="field-label">Perfil<select name="role"><option>Gestor de setor</option><option>Ouvidoria</option><option>Visualizador</option></select></label><label className="field-label">Status<select name="status"><option>Ativo</option><option>Inativo</option></select></label></>}
+    {section === 'Setores' && <label className="form-check"><input name="active" type="checkbox" defaultChecked /><span>Setor ativo</span></label>}
     <p className="integration-note">Prévia de formulário. Os dados não serão gravados até a integração com a API.</p><div className="dialog-actions"><Button variante="secundario" onClick={onClose}>Cancelar</Button><Button type="submit">Validar campos</Button></div>
   </form></section></div>;
 }
