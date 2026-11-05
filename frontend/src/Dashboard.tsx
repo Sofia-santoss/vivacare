@@ -1,5 +1,6 @@
 ﻿import { useState } from 'react';
 import { Ouvidoria } from './Ouvidoria';
+import { TvWall } from './TvWall';
 
 const navigation = ['Visão geral', 'Pesquisas', 'Indicadores', 'Ouvidoria', 'Perguntas', 'Setores', 'Usuários', 'Configurações'];
 type DashboardProps = { onBack: () => void };
@@ -10,6 +11,9 @@ export function Dashboard({ onBack }: DashboardProps) {
   const [sector, setSector] = useState('Todos os setores');
   const [shift, setShift] = useState('Todos os turnos');
   const [applied, setApplied] = useState(false);
+  const [showTvWall, setShowTvWall] = useState(false);
+
+  if (showTvWall) return <TvWall onExit={() => setShowTvWall(false)} />;
 
   return <main className="management-page">
     <header className="management-topbar">
@@ -22,7 +26,7 @@ export function Dashboard({ onBack }: DashboardProps) {
         <button className="return-survey" onClick={onBack}>← Pesquisa do paciente</button>
       </aside>
       <section className="dashboard-content">
-        <div className="dashboard-heading"><div><div className="eyebrow">PAINEL DE GESTÃO</div><h1>{active}</h1><p>Indicadores de experiência do paciente</p></div><span className="refresh-label">Atualização automática</span></div>
+        <div className="dashboard-heading"><div><div className="eyebrow">PAINEL DE GESTÃO</div><h1>{active}</h1><p>Indicadores de experiência do paciente</p></div><div className="dashboard-actions"><span className="refresh-label">Atualização automática</span><button className="tvwall-open-button" onClick={() => setShowTvWall(true)}>◱ TV Wall</button></div></div>
         <div className="filter-bar">
           <label>Setor<select value={sector} onChange={(e) => setSector(e.target.value)}><option>Todos os setores</option><option>Recepção</option><option>Enfermagem</option><option>Pronto Atendimento</option><option>Internação</option><option>Farmácia</option></select></label>
           <label>Período<select value={period} onChange={(e) => setPeriod(e.target.value)}><option>Últimos 30 dias</option><option>Últimos 7 dias</option><option>Este mês</option><option>Este ano</option></select></label>

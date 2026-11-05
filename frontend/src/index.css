@@ -200,3 +200,53 @@ textarea { min-height: 100px; resize: vertical; }
 @media (max-width: 620px) { .ombudsman-heading { align-items: flex-start; }.ombudsman-heading p { max-width: 300px; }.ombudsman-heading .export-button { font-size: 0; }.ombudsman-heading .export-button:first-letter { font-size: 14px; }.ombudsman-filters { grid-template-columns: 1fr 1fr; }.case-actions { display: grid; grid-template-columns: 1fr; }.case-actions button { width: 100%; } }
 
 .integration-note { margin: 10px 0; color: #77808d; font-size: 10px; line-height: 1.4; }
+
+.dashboard-actions { display: flex; align-items: center; gap: 8px; }
+.tvwall-open-button { min-height: 34px; border: 1px solid #c8102e; border-radius: 7px; padding: 0 10px; background: white; color: #a82832; font-size: 10px; font-weight: 650; }
+.tvwall { min-height: 100vh; display: flex; flex-direction: column; gap: clamp(14px,2vh,24px); padding: clamp(18px,3vw,44px); background: #200506; color: #fff; }
+.tvwall-header { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.tvwall-brand { display: flex; align-items: center; gap: 11px; color: #ef383d; font-size: 16px; font-weight: 850; }
+.tvwall-brand h1 { margin: 0 0 0 13px; color: #fff; font-size: clamp(18px,2vw,28px); letter-spacing: 0; }
+.tvwall-brand h1 span { font-weight: 450; }
+.tvwall-controls { display: flex; align-items: center; gap: 15px; }
+.tvwall-live { display: flex; align-items: center; gap: 7px; color: #f7dddd; font-size: 11px; white-space: nowrap; }
+.tvwall-live i { width: 8px; height: 8px; border-radius: 50%; background: #e0302a; }
+.tvwall-controls button { border: 1px solid #6a383b; border-radius: 7px; padding: 8px 11px; background: transparent; color: #f5dfe0; font-size: 10px; }
+.tvwall-metrics { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: clamp(10px,1.5vw,20px); }
+.tvwall-card { border: 1px solid #4c1a20; border-radius: 13px; background: #361017; }
+.tvwall-metric { min-height: 140px; padding: clamp(13px,1.5vw,22px); }
+.tvwall-metric > div { display: flex; align-items: center; justify-content: space-between; color: #f6dfe1; font-size: clamp(11px,1vw,16px); }
+.tvwall-metric b { color: #ed3646; font-size: 17px; }
+.tvwall-metric > strong { display: block; margin: 10px 0 4px; color: #fa7182; font-size: clamp(34px,4vw,64px); line-height: 1; }
+.tvwall-metric small { color: #b99397; font-size: clamp(9px,.8vw,12px); }
+.tvwall-charts { flex: 1; min-height: 250px; display: grid; grid-template-columns: 1fr 1fr; gap: clamp(10px,1.5vw,20px); }
+.tvwall-chart { min-height: 250px; padding: clamp(14px,1.6vw,22px); }
+.tvwall-chart header { display: grid; gap: 5px; }
+.tvwall-chart header strong { font-size: clamp(12px,1vw,16px); }
+.tvwall-chart header small { color: #b99397; font-size: 10px; }
+.tvwall-empty-chart { height: calc(100% - 48px); min-height: 180px; position: relative; display: grid; place-items: center; margin-top: 15px; border-bottom: 1px solid #57232a; background: repeating-linear-gradient(to bottom,transparent 0,transparent 24%,#512027 24.5%,transparent 25%); color: #b99397; font-size: 11px; }
+.tvwall-empty-chart::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: radial-gradient(circle,#e0302a 2px,transparent 3px) 0 0/16% 4px repeat-x; }
+.tvwall-sector-empty { display: grid; gap: 18px; margin-top: 25px; }
+.tvwall-sector-empty div { display: grid; grid-template-columns: 140px 1fr 20px; align-items: center; gap: 10px; color: #e6c9cb; font-size: clamp(9px,.8vw,12px); }
+.tvwall-sector-empty b { grid-column: 3; color: #f06c7b; }
+.tvwall-distribution { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: clamp(10px,1.5vw,20px); }
+.tvwall-distribution-card { min-height: 106px; display: flex; align-items: center; gap: 12px; padding: clamp(12px,1.5vw,20px); }
+.distribution-symbol { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 10px; background: #4b2027; color: #a7a3a5; font-size: 20px; }
+.tvwall-distribution-card > div:nth-child(2) { display: grid; gap: 4px; }
+.tvwall-distribution-card strong { color: #f3e2e3; font-size: clamp(12px,1vw,16px); }
+.tvwall-distribution-card small, .tvwall-distribution-card > span { color: #b99397; font-size: 10px; }
+.tvwall-distribution-card > span { margin-left: auto; }
+.tvwall-distribution-card.positive .distribution-symbol { color: #1eb887; }
+.tvwall-distribution-card.neutral .distribution-symbol { color: #e8b54c; }
+.tvwall-distribution-card.negative .distribution-symbol { color: #ef5964; }
+.tvwall-footer { align-self: center; color: #b98289; font-size: 10px; text-align: center; }
+@media (max-width: 700px) {
+  .tvwall-header { align-items: flex-start; flex-direction: column; }
+  .tvwall-brand { flex-wrap: wrap; }
+  .tvwall-brand h1 { flex-basis: 100%; margin: 8px 0 0; }
+  .tvwall-controls { width: 100%; justify-content: space-between; }
+  .tvwall-metrics { grid-template-columns: 1fr 1fr; }
+  .tvwall-metric { min-height: 112px; }
+  .tvwall-charts { grid-template-columns: 1fr; }
+  .tvwall-distribution { grid-template-columns: 1fr; }
+}
