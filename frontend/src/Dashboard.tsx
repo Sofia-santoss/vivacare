@@ -1,4 +1,5 @@
 ﻿import { useState } from 'react';
+import { Ouvidoria } from './Ouvidoria';
 
 const navigation = ['Visão geral', 'Pesquisas', 'Indicadores', 'Ouvidoria', 'Perguntas', 'Setores', 'Usuários', 'Configurações'];
 type DashboardProps = { onBack: () => void };
@@ -28,7 +29,7 @@ export function Dashboard({ onBack }: DashboardProps) {
           <label>Turno<select value={shift} onChange={(e) => setShift(e.target.value)}><option>Todos os turnos</option><option>Manhã</option><option>Tarde</option><option>Noite</option></select></label>
           <button className="primary filter-button" onClick={() => setApplied(true)}>Aplicar filtros</button>
         </div>
-        {active === 'Visão geral' ? <>
+        {active === 'Ouvidoria' ? <Ouvidoria /> : active === 'Visão geral' ? <>
           <div className="metric-grid"><Metric title="NPS geral" icon="♡" /><Metric title="Satisfação média" icon="◷" /><Metric title="Total de avaliações" icon="▣" /><Metric title="Manifestações abertas" icon="♧" /></div>
           <div className="chart-grid">
             <article className="dashboard-card chart-card"><CardTitle title="Evolução do NPS" subtitle={period} /><EmptyChart /></article>

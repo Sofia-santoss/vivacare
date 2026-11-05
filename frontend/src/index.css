@@ -169,3 +169,32 @@ textarea { min-height: 100px; resize: vertical; }
   .chart-grid { grid-template-columns: 1fr; }
   .chart-card { min-height: 170px; }
 }
+
+.ombudsman-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin: 3px 0 18px; }
+.ombudsman-heading .eyebrow { margin: 0 0 5px; }
+.ombudsman-heading h2 { margin: 0; font-size: 23px; }
+.ombudsman-heading p { margin: 5px 0 0; color: #77808d; font-size: 11px; }
+.export-button { min-height: 38px; border-radius: 7px; white-space: nowrap; font-size: 11px; }
+.export-button:disabled, .case-actions button:disabled { cursor: not-allowed; border-color: #d7dee6; background: #eff2f5; color: #98a2b3; opacity: 1; }
+.ombudsman-filters { display: grid; grid-template-columns: repeat(5,minmax(115px,1fr)) auto; align-items: end; gap: 8px; padding: 13px; border: 1px solid #e5dfe0; border-radius: 12px 12px 0 0; background: white; }
+.ombudsman-filters label { display: grid; gap: 5px; color: #475467; font-size: 9px; font-weight: 650; }
+.ombudsman-filters select { min-width: 0; height: 36px; border: 1px solid #d8dfe7; border-radius: 7px; padding: 0 7px; background: white; color: #344054; font-size: 10px; }
+.ombudsman-summary { padding: 0 13px 12px; background: white; color: #77808d; font-size: 10px; }
+.ombudsman-table-wrap { overflow-x: auto; border: 1px solid #e5dfe0; border-radius: 0 0 11px 11px; background: white; }
+.ombudsman-table { width: 100%; min-width: 780px; border-collapse: collapse; }
+.ombudsman-table th { padding: 10px 9px; background: #f5f7f9; color: #697586; text-align: left; font-size: 9px; font-weight: 700; }
+.ombudsman-table td { border-top: 1px solid #edf0f3; }
+.ombudsman-empty { min-height: 150px; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 15px; color: #667085; text-align: center; }
+.ombudsman-empty > span { color: #98a2b3; font-size: 26px; }
+.ombudsman-empty strong { margin-top: 7px; color: #344054; font-size: 11px; }
+.ombudsman-empty p { max-width: 410px; margin: 5px 0 0; color: #8a94a3; font-size: 10px; line-height: 1.5; }
+.case-detail { margin-top: 15px; padding: 15px; border: 1px solid #e4dfe0; border-radius: 11px; background: white; box-shadow: 0 3px 11px #2a08060a; }
+.case-detail-heading { display: flex; justify-content: space-between; align-items: center; }
+.case-detail-heading .eyebrow { margin: 0 0 5px; }
+.case-detail-heading h3 { margin: 0; font-size: 13px; }
+.status-pill { padding: 5px 8px; border-radius: 99px; background: #eef2f5; color: #667085; font-size: 9px; }
+.case-detail > p { min-height: 35px; margin: 14px 0; color: #77808d; font-size: 10px; line-height: 1.5; }
+.case-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.case-actions button { min-height: 35px; border-radius: 7px; padding: 0 11px; font-size: 10px; }
+@media (max-width: 900px) { .ombudsman-filters { grid-template-columns: repeat(3,minmax(0,1fr)); }.ombudsman-filters .filter-button { min-height: 36px; } }
+@media (max-width: 620px) { .ombudsman-heading { align-items: flex-start; }.ombudsman-heading p { max-width: 300px; }.ombudsman-heading .export-button { font-size: 0; }.ombudsman-heading .export-button:first-letter { font-size: 14px; }.ombudsman-filters { grid-template-columns: 1fr 1fr; }.case-actions { display: grid; grid-template-columns: 1fr; }.case-actions button { width: 100%; } }
