@@ -290,6 +290,8 @@ textarea { min-height: 100px; resize: vertical; }
 .form-dialog .field-label { display: grid; gap: 6px; }
 .form-dialog .field-label input, .form-dialog .field-label select { margin: 0; }
 .form-dialog .field-label select { min-height: 42px; border: 1px solid #cfd8e3; border-radius: 9px; padding: 0 10px; background: white; color: #344054; font-size: 13px; }
+.form-dialog .form-check { display: flex; align-items: center; gap: 9px; margin: 4px 0; color: #475467; font-size: 12px; }
+.form-dialog .form-check input { width: 17px; height: 17px; margin: 0; accent-color: #c8102e; }
 .dialog-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 10px; }
 .dialog-actions button { height: 42px; min-height: 42px; border-radius: 8px; padding: 0 10px; font-size: 12px; }
 .management-login-page { min-height: 100vh; padding: 32px clamp(16px,5vw,72px) 48px; background: #fdf5f5; color: #2a0806; }
