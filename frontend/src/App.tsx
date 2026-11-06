@@ -1,8 +1,8 @@
 ﻿import { useState } from 'react';
 import { Dashboard } from './Dashboard';
 import { Button } from './components/Button';
+import type { FormEvent } from 'react';
 
-type CareSource = 'rating' | 'nps';
 type Screen = 'access' | 'welcome' | 'ratings' | 'nps' | 'comment' | 'care' | 'contact' | 'done';
 
 const ratings = [
@@ -20,15 +20,22 @@ function Brand() {
   </div>;
 }
 
+function formatPhone(value: string) {
+  const digits = value.replace(/\D/g, '').slice(0, 11);
+  if (digits.length <= 2) return digits ? `(${digits}` : '';
+  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+}
+
 export function App() {
   const [screen, setScreen] = useState<Screen>('access');
-  const [showDashboard, setShowDashboard] = useState(false);
+  const [staffView, setStaffView] = useState<'patient' | 'login' | 'dashboard'>('patient');
   const [ratingIndex, setRatingIndex] = useState(0);
   const [answers, setAnswers] = useState<number[]>([]);
   const [nps, setNps] = useState<number | null>(null);
   const [comment, setComment] = useState('');
   const [wantsContact, setWantsContact] = useState<boolean | null>(null);
-  const [careSource, setCareSource] = useState<CareSource>('nps');
   const [phone, setPhone] = useState('');
   const [statement, setStatement] = useState('');
   const [consent, setConsent] = useState(false);
@@ -44,21 +51,19 @@ export function App() {
   const finishRating = (value: number) => {
     setAnswers((current) => { const updated = [...current]; updated[ratingIndex] = value; return updated; });
     setError('');
-    if (ratingIndex === 0 && value <= 3) { setCareSource('rating'); go('care'); }
   };
   const declineCare = () => {
     setWantsContact(false);
-    if (careSource === 'rating') { setRatingIndex(1); go('ratings'); }
-    else go('done');
+    go('done');
   };
   const submitContact = () => {
     if (!statement.trim()) { setError('Conte brevemente sua experiência para continuar.'); return; }
     if (!phone.trim() || !consent) { setError('Informe seu telefone e aceite o termo de consentimento.'); return; }
-    if (careSource === 'rating') { setRatingIndex(1); go('ratings'); }
-    else go('done');
+    go('done');
   };
 
-  if (showDashboard) return <Dashboard onBack={() => setShowDashboard(false)} />;
+  if (staffView === 'dashboard') return <Dashboard onBack={() => setStaffView('patient')} />;
+  if (staffView === 'login') return <ManagementLogin onBack={() => setStaffView('patient')} onPreview={() => setStaffView('dashboard')} />;
 
   return <main className="page">
     <section className="survey" aria-live="polite">
@@ -73,7 +78,7 @@ export function App() {
         <div className="info-card"><span className="info-icon">▣</span><span><small>SETOR IDENTIFICADO</small><strong>Pesquisa — Recepção</strong></span></div>
         <div className="privacy-card"><span>♧</span><p>Participar é voluntário. Você pode parar a qualquer momento.</p></div>
         <Button className="bottom-action" onClick={() => go('welcome')}>Começar avaliação</Button>
-        <button className="staff-link" onClick={() => setShowDashboard(true)}>Acesso da equipe</button>
+        <button className="staff-link" onClick={() => setStaffView('login')}>Acesso da equipe</button>
       </div>}
       {screen === 'welcome' && <div className="screen">
         <div className="eyebrow">BOAS-VINDAS</div><h1>Sua opinião ajuda a melhorar nosso atendimento.</h1>
@@ -96,30 +101,70 @@ export function App() {
       </div>}
       {screen === 'comment' && <div className="screen">
         <div className="eyebrow">COMENTÁRIO OPCIONAL</div><button className="skip-link" onClick={() => go(nps !== null && nps < 7 ? 'care' : 'done')}>Pular</button>
-        <h1>Obrigado pela sua avaliação!</h1><div className="success-card"><span>✓</span><div><strong>Avaliação registrada</strong><p>Que bom saber que você nos contou sobre seu atendimento.</p></div></div>
+        <h1>Obrigado pela sua avaliação!</h1><div className="success-card"><span>✓</span><div><strong>Resposta selecionada</strong><p>Que bom saber que você nos contou sobre seu atendimento.</p></div></div>
         <label className="field-label" htmlFor="comment">Quer deixar um comentário?</label><textarea id="comment" value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Conte o que mais gostou. Esta etapa é opcional." maxLength={500} />
-        <Button className="bottom-action" onClick={() => { if (nps !== null && nps < 7) { setCareSource('nps'); go('care'); } else go('done'); }}>Continuar</Button>
+        <Button className="bottom-action" onClick={() => { if (nps !== null && nps < 7) go('care'); else go('done'); }}>Continuar</Button>
       </div>}
       {screen === 'care' && <div className="screen">
         <div className="eyebrow">CUIDADO E ESCUTA</div><h1>Podemos entender melhor o que aconteceu?</h1><div className="care-illustration" aria-hidden="true">♡</div>
-        <p className="helper">{careSource === 'rating' ? 'Você avaliou a Recepção como ' + (scaleLabels[(answers[0] ?? 3) - 1] ?? 'Regular').toLowerCase() + '. Gostaria de conversar com a Ouvidoria e contar o que poderia ter sido melhor? A escolha é sua e não altera seu atendimento.' : 'Se você quiser, a Ouvidoria pode entrar em contato para ouvir seu relato. A escolha é sua e não altera seu atendimento.'}</p>
+        <p className="helper">Se você quiser, a Ouvidoria pode entrar em contato para ouvir seu relato. A escolha é sua e não altera seu atendimento.</p>
         <div className="button-stack"><Button onClick={() => { setWantsContact(true); go('contact'); }}>Sim, quero contato</Button><Button variante="secundario" onClick={declineCare}>Não, obrigado</Button></div>
       </div>}
       {screen === 'contact' && <div className="screen">
-        <div className="eyebrow">CONSENTIMENTO · DADOS PROTEGIDOS</div><h1>Como podemos falar com você?</h1>
-        <label className="field-label" htmlFor="phone">Telefone ou celular para retorno</label><input id="phone" type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Digite seu telefone ou celular" />
+        <div className="eyebrow">CONSENTIMENTO · DADOS PROTEGIDOS</div><button className="skip-link" onClick={() => { setWantsContact(false); go('done'); }}>Pular</button><h1>Como podemos falar com você?</h1>
+        <label className="field-label" htmlFor="phone">Telefone ou celular para retorno</label><input id="phone" type="tel" inputMode="tel" autoComplete="tel" maxLength={15} value={phone} onChange={(e) => setPhone(formatPhone(e.target.value))} placeholder="(11) 98888-1234" />
         <label className="field-label" htmlFor="statement">Conte sua experiência</label><textarea id="statement" value={statement} onChange={(e) => setStatement(e.target.value)} placeholder="Conte o que aconteceu durante o atendimento." maxLength={1000} />
         <label className="consent"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} /><span>Li e concordo com o termo de consentimento.</span></label>
         <button className="text-link" type="button" onClick={() => setError('O termo de privacidade será apresentado pela instituição antes do envio.')}>Consultar termo de privacidade</button>
-        <p className="integration-note">O envio do relato será ativado quando a Ouvidoria estiver conectada ao sistema.</p>
-        {error && <p className="error-message" role="alert">{error}</p>}<Button className="bottom-action" onClick={submitContact}>{careSource === 'rating' ? 'Continuar avaliação' : 'Concluir'}</Button>
+        <p className="integration-note">Prévia do formulário. O relato não será enviado até a integração com a API.</p>
+        {error && <p className="error-message" role="alert">{error}</p>}<Button className="bottom-action" onClick={submitContact}>Concluir</Button>
       </div>}
       {screen === 'done' && <div className="screen done-screen">
         <div className="eyebrow">PESQUISA CONCLUÍDA</div><div className="done-icon">✓</div><h1>Obrigado por participar!</h1>
-        <p className="helper">{wantsContact ? 'Você autorizou a Ouvidoria a entrar em contato. O envio da manifestação ainda depende da integração com o serviço.' : 'Sua escolha foi respeitada e nenhum dado de contato foi solicitado.'}</p>
-        <p className="muted">Sua opinião foi registrada e vai nos ajudar a melhorar o atendimento.</p><Button className="bottom-action" onClick={() => go('access')}>Encerrar</Button>
+        <div className="submission-summary"><strong>Resumo das respostas</strong><div><span>Avaliações</span><b>{answers.filter((answer) => answer > 0).length} de {ratings.length} respondidas</b></div><div><span>Recomendação</span><b>{nps === null ? 'Não informada' : `${nps} de 10`}</b></div><div><span>Comentário</span><b>{comment.trim() ? 'Adicionado' : 'Não informado'}</b></div></div>
+        <p className="helper">{wantsContact ? 'Sua preferência de contato foi preenchida nesta prévia. Nenhum dado foi enviado ao sistema.' : 'Sua escolha foi respeitada e nenhum dado de contato foi solicitado.'}</p>
+        <p className="muted">Sua opinião é importante e vai nos ajudar a melhorar o atendimento.</p><p className="integration-note">Esta prévia não salva respostas. O envio será ativado pela integração com a API.</p><Button className="bottom-action" onClick={() => { setAnswers([]); setNps(null); setComment(''); setStatement(''); setPhone(''); setConsent(false); setWantsContact(null); setRatingIndex(0); go('access'); }}>Encerrar</Button>
       </div>}
     </section>
     <p className="page-foot">VivaCare · Cuidar também é ouvir</p>
+  </main>;
+}
+
+function ManagementLogin({ onBack, onPreview }: { onBack: () => void; onPreview: () => void }) {
+  const [message, setMessage] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showNewPasswords, setShowNewPasswords] = useState(false);
+  const submitLogin = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setMessage('A autenticação ainda não está conectada ao backend. Nenhuma sessão foi iniciada.');
+  };
+  const submitPassword = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const fields = new FormData(event.currentTarget);
+    if (fields.get('new-password') !== fields.get('confirm-password')) {
+      setMessage('A confirmação não corresponde à nova senha. Confira os campos.');
+      return;
+    }
+    setMessage('A criação de senha ficará disponível após a integração de autenticação.');
+  };
+
+  return <main className="management-login-page">
+    <header className="login-heading"><button className="login-back" onClick={onBack}>← Voltar para pesquisa</button><div><div className="eyebrow">ACESSO SEGURO</div><h1>VivaCare · Gestão</h1><p>Área da equipe da Fundação Hospitalar Dr. Oswaldo Diesel.</p></div></header>
+    {message && <p className="login-message" role="alert">{message}</p>}
+    <div className="login-cards">
+      <section className="dashboard-card login-card"><Brand /><h2>Entrar no VivaCare</h2><p>Acesse o painel de gestão da experiência do paciente.</p><form onSubmit={submitLogin}>
+        <label className="field-label" htmlFor="staff-email">E-mail</label><input id="staff-email" type="email" autoComplete="username" required placeholder="nome@hospital.org.br" />
+        <label className="field-label" htmlFor="staff-password">Senha</label><div className="password-field"><input id="staff-password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" required /><button type="button" aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'} onClick={() => setShowPassword((value) => !value)}>{showPassword ? 'Ocultar' : 'Mostrar'}</button></div>
+        <Button type="submit">Entrar</Button><button className="text-link" type="button" onClick={() => setMessage('A recuperação de senha ficará disponível após a integração de autenticação.')}>Esqueci minha senha</button>
+      </form></section>
+      <section className="dashboard-card login-card"><Brand /><h2>Crie sua nova senha</h2><p>Use esta área após receber uma senha temporária da equipe.</p><form onSubmit={submitPassword}>
+        <label className="field-label" htmlFor="temporary-password">Senha temporária</label><input id="temporary-password" name="temporary-password" type={showNewPasswords ? 'text' : 'password'} autoComplete="one-time-code" required />
+        <label className="field-label" htmlFor="new-password">Nova senha</label><input id="new-password" name="new-password" type={showNewPasswords ? 'text' : 'password'} autoComplete="new-password" minLength={10} required />
+        <label className="field-label" htmlFor="confirm-password">Confirmar nova senha</label><input id="confirm-password" name="confirm-password" type={showNewPasswords ? 'text' : 'password'} autoComplete="new-password" minLength={10} required />
+        <button className="text-link" type="button" onClick={() => setShowNewPasswords((value) => !value)}>{showNewPasswords ? 'Ocultar senhas' : 'Mostrar senhas'}</button>
+        <Button type="submit">Salvar nova senha</Button>
+      </form></section>
+    </div>
+    <aside className="preview-access"><strong>Prévia para apresentação</strong><p>Esta opção abre a interface sem autenticar e não concede acesso protegido nem consulta dados.</p><Button variante="secundario" onClick={onPreview}>Visualizar painel sem autenticação</Button></aside>
   </main>;
 }

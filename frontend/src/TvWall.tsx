@@ -11,7 +11,7 @@ export function TvWall({ onExit }: TvWallProps) {
   return <main className="tvwall">
     <header className="tvwall-header">
       <div className="tvwall-brand"><span className="brand-mark" aria-hidden="true"><i /><i /><i /></span><span>FHDOD</span><h1>VivaCare <span>— Experiência do Paciente</span></h1></div>
-      <div className="tvwall-controls"><span className="tvwall-live"><i /> Aguardando dados</span><button onClick={onExit}>Sair da TV Wall</button></div>
+      <div className="tvwall-controls"><span className="tvwall-live"><i /> API não conectada</span><button onClick={onExit}>Sair da TV Wall</button></div>
     </header>
     <section className="tvwall-metrics" aria-label="Indicadores principais">
       {metrics.map((metric) => <article className="tvwall-card tvwall-metric" key={metric.label}>
