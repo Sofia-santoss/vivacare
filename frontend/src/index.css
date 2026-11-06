@@ -67,6 +67,7 @@ h1 { max-width: 320px; margin: 0 0 13px; color: #2a0806; font-size: clamp(23px, 
 .rating-grid { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 6px; margin: 6px 0 12px; }
 .rating-option { min-width: 0; min-height: 92px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 5px; border: 1px solid #dce3ea; border-radius: 10px; background: white; color: #344054; font-size: 12px; }
 .rating-option .face { color: #667085; font-size: 22px; line-height: 1; }
+.rating-option .face-icon { width: 24px; height: 24px; flex: 0 0 24px; }
 .rating-option small { font-size: 8px; }
 .rating-option.selected { border: 1.5px solid #c8102e; background: #fff0f1; color: #c8102e; }
 .rating-option.selected .face { color: #c8102e; }
@@ -330,6 +331,7 @@ textarea { min-height: 100px; resize: vertical; }
 .submission-summary > strong { display: block; margin-bottom: 8px; font-size: 11px; }
 .submission-summary > div { display: flex; justify-content: space-between; gap: 10px; padding: 5px 0; color: #667085; font-size: 10px; }
 .submission-summary b { color: #344054; font-size: 10px; }
+.contact-form { display: flex; flex: 1; flex-direction: column; }
 @media (max-width: 760px) {
   .indicator-grid, .login-cards { grid-template-columns: 1fr; }
   .list-heading { align-items: flex-start; flex-direction: column; }
