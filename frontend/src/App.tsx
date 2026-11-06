@@ -69,12 +69,13 @@ export function App() {
     if (value <= 3) {
       setFollowupSource('rating');
       setWantsContact(null);
-      go('contact');
+      go('care');
     }
   };
   const declineCare = () => {
     setWantsContact(false);
-    go('done');
+    if (followupSource === 'rating') continueAfterFollowup();
+    else go('done');
   };
   const continueAfterFollowup = () => {
     const source = followupSource;
@@ -151,8 +152,8 @@ export function App() {
       </div>}
       {screen === 'care' && <div className="screen">
         <div className="eyebrow">CUIDADO E ESCUTA</div><h1>Podemos entender melhor o que aconteceu?</h1><div className="care-illustration" aria-hidden="true">♡</div>
-        <p className="helper">Se você quiser, a Ouvidoria pode entrar em contato para ouvir seu relato. A escolha é sua e não altera seu atendimento.</p>
-        <div className="button-stack"><Button onClick={() => { setFollowupSource('nps'); setWantsContact(null); go('contact'); }}>Sim, quero contato</Button><Button variante="secundario" onClick={declineCare}>Não, obrigado</Button></div>
+        <p className="helper">{followupSource === 'rating' ? `Você deu nota ${answers[ratingIndex]} para o atendimento da ${ratings[ratingIndex]!.area}. Se desejar, conte mais à Ouvidoria. Participar é opcional e você pode continuar a pesquisa sem preencher o formulário.` : 'Se você quiser, a Ouvidoria pode entrar em contato para ouvir seu relato. A escolha é sua e não altera seu atendimento.'}</p>
+        <div className="button-stack"><Button onClick={() => { if (followupSource !== 'rating') setFollowupSource('nps'); setWantsContact(null); go('contact'); }}>{followupSource === 'rating' ? 'Quero falar com a Ouvidoria' : 'Sim, quero contato'}</Button><Button variante="secundario" onClick={declineCare}>{followupSource === 'rating' ? 'Continuar pesquisa' : 'Não, obrigado'}</Button></div>
       </div>}
       {screen === 'contact' && <div className="screen">
         <div className="eyebrow">OUVIDORIA · CONSENTIMENTO E PRIVACIDADE</div><button className="skip-link" onClick={skipFollowup}>{followupSource === 'rating' ? 'Pular e continuar' : 'Pular'}</button><h1>{followupSource === 'rating' ? 'Quer contar um pouco mais?' : 'Como podemos falar com você?'}</h1>
