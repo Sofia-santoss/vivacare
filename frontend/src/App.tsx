@@ -20,6 +20,14 @@ function Brand() {
   </div>;
 }
 
+function formatPhone(value: string) {
+  const digits = value.replace(/\D/g, '').slice(0, 11);
+  if (digits.length <= 2) return digits ? `(${digits}` : '';
+  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+}
+
 export function App() {
   const [screen, setScreen] = useState<Screen>('access');
   const [staffView, setStaffView] = useState<'patient' | 'login' | 'dashboard'>('patient');
@@ -104,7 +112,7 @@ export function App() {
       </div>}
       {screen === 'contact' && <div className="screen">
         <div className="eyebrow">CONSENTIMENTO · DADOS PROTEGIDOS</div><button className="skip-link" onClick={() => { setWantsContact(false); go('done'); }}>Pular</button><h1>Como podemos falar com você?</h1>
-        <label className="field-label" htmlFor="phone">Telefone ou celular para retorno</label><input id="phone" type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Digite seu telefone ou celular" />
+        <label className="field-label" htmlFor="phone">Telefone ou celular para retorno</label><input id="phone" type="tel" inputMode="tel" autoComplete="tel" maxLength={15} value={phone} onChange={(e) => setPhone(formatPhone(e.target.value))} placeholder="(11) 98888-1234" />
         <label className="field-label" htmlFor="statement">Conte sua experiência</label><textarea id="statement" value={statement} onChange={(e) => setStatement(e.target.value)} placeholder="Conte o que aconteceu durante o atendimento." maxLength={1000} />
         <label className="consent"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} /><span>Li e concordo com o termo de consentimento.</span></label>
         <button className="text-link" type="button" onClick={() => setError('O termo de privacidade será apresentado pela instituição antes do envio.')}>Consultar termo de privacidade</button>
@@ -125,12 +133,18 @@ export function App() {
 function ManagementLogin({ onBack, onPreview }: { onBack: () => void; onPreview: () => void }) {
   const [message, setMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showNewPasswords, setShowNewPasswords] = useState(false);
   const submitLogin = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setMessage('A autenticação ainda não está conectada ao backend. Nenhuma sessão foi iniciada.');
   };
   const submitPassword = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const fields = new FormData(event.currentTarget);
+    if (fields.get('new-password') !== fields.get('confirm-password')) {
+      setMessage('A confirmação não corresponde à nova senha. Confira os campos.');
+      return;
+    }
     setMessage('A criação de senha ficará disponível após a integração de autenticação.');
   };
 
@@ -144,9 +158,10 @@ function ManagementLogin({ onBack, onPreview }: { onBack: () => void; onPreview:
         <Button type="submit">Entrar</Button><button className="text-link" type="button" onClick={() => setMessage('A recuperação de senha ficará disponível após a integração de autenticação.')}>Esqueci minha senha</button>
       </form></section>
       <section className="dashboard-card login-card"><Brand /><h2>Crie sua nova senha</h2><p>Use esta área após receber uma senha temporária da equipe.</p><form onSubmit={submitPassword}>
-        <label className="field-label" htmlFor="temporary-password">Senha temporária</label><input id="temporary-password" type="password" autoComplete="one-time-code" required />
-        <label className="field-label" htmlFor="new-password">Nova senha</label><input id="new-password" type="password" autoComplete="new-password" minLength={10} required />
-        <label className="field-label" htmlFor="confirm-password">Confirmar nova senha</label><input id="confirm-password" type="password" autoComplete="new-password" minLength={10} required />
+        <label className="field-label" htmlFor="temporary-password">Senha temporária</label><input id="temporary-password" name="temporary-password" type={showNewPasswords ? 'text' : 'password'} autoComplete="one-time-code" required />
+        <label className="field-label" htmlFor="new-password">Nova senha</label><input id="new-password" name="new-password" type={showNewPasswords ? 'text' : 'password'} autoComplete="new-password" minLength={10} required />
+        <label className="field-label" htmlFor="confirm-password">Confirmar nova senha</label><input id="confirm-password" name="confirm-password" type={showNewPasswords ? 'text' : 'password'} autoComplete="new-password" minLength={10} required />
+        <button className="text-link" type="button" onClick={() => setShowNewPasswords((value) => !value)}>{showNewPasswords ? 'Ocultar senhas' : 'Mostrar senhas'}</button>
         <Button type="submit">Salvar nova senha</Button>
       </form></section>
     </div>
