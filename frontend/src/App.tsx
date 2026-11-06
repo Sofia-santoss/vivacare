@@ -58,6 +58,17 @@ export function App() {
 
   const progress = screen === 'ratings' ? 14 + ratingIndex * 14 : screen === 'nps' ? 71 : screen === 'comment' || screen === 'care' ? 86 : screen === 'contact' ? 96 : 0;
   const go = (next: Screen) => { setError(''); setScreen(next); };
+  const goBack = () => {
+    setError('');
+    if (screen === 'welcome') go('access');
+    else if (screen === 'ratings' && ratingIndex > 0) { setRatingIndex((current) => current - 1); go('ratings'); }
+    else if (screen === 'ratings') go('welcome');
+    else if (screen === 'nps') { setRatingIndex(ratings.length - 1); go('ratings'); }
+    else if (screen === 'comment') go('nps');
+    else if (screen === 'care') go(followupSource === 'rating' ? 'ratings' : 'comment');
+    else if (screen === 'contact') go('care');
+    else if (screen === 'done') go(nps !== null && nps < 7 ? 'care' : nps !== null ? 'comment' : 'ratings');
+  };
   const nextRating = () => {
     if (!answers[ratingIndex]) { setError('Escolha uma nota para continuar.'); return; }
     if (ratingIndex < ratings.length - 1) setRatingIndex(ratingIndex + 1);
@@ -125,37 +136,37 @@ export function App() {
         <Button className="bottom-action" onClick={() => go('welcome')}>Começar avaliação</Button>
         <button className="staff-link" onClick={() => setStaffView('login')}>Acesso da equipe</button>
       </div>}
-      {screen === 'welcome' && <div className="screen">
+      {screen === 'welcome' && <div className="screen"><BackButton onClick={goBack} />
         <div className="eyebrow">BOAS-VINDAS</div><h1>Sua opinião ajuda a melhorar nosso atendimento.</h1>
         <div className="time-note"><span>◷</span> Leva menos de 2 minutos.</div>
         <ul className="promise-list"><li><span>✳</span> Uma pergunta por tela</li><li><span>♧</span> Respostas usadas para melhorar o cuidado</li><li><span>♡</span> Você pode encerrar quando quiser</li></ul>
         <Button className="bottom-action" onClick={() => go('ratings')}>Começar</Button>
       </div>}
-      {screen === 'ratings' && <div className="screen">
+      {screen === 'ratings' && <div className="screen"><BackButton onClick={goBack} />
         <div className="eyebrow">AVALIAÇÃO · {ratings[ratingIndex]!.area.toUpperCase()}</div><h1>{ratings[ratingIndex]!.title}</h1>
         <p className="helper">Toque no rosto que melhor representa sua experiência.</p>
         <div className="rating-grid" role="group" aria-label="Avaliação de 1 a 5">{scaleLabels.map((label, index) => <button key={label} className={'rating-option ' + (answers[ratingIndex] === index + 1 ? 'selected' : '')} onClick={() => finishRating(index + 1)} aria-label={`Nota ${index + 1}: ${label}`} aria-pressed={answers[ratingIndex] === index + 1}><RatingFace index={index} /><span>{index + 1}</span><small>{label}</small></button>)}</div>
         {(answers[ratingIndex] ?? 0) > 0 && <div className="selected-note">✓ {answers[ratingIndex] ?? 0} — {scaleLabels[(answers[ratingIndex] ?? 1) - 1]} selecionado</div>}
         {error && <p className="error-message" role="alert">{error}</p>}<Button className="bottom-action" onClick={nextRating}>Continuar</Button>
       </div>}
-      {screen === 'nps' && <div className="screen">
+      {screen === 'nps' && <div className="screen"><BackButton onClick={goBack} />
         <div className="eyebrow">RECOMENDAÇÃO</div><h1>De 0 a 10, quanto você recomendaria este hospital?</h1><p className="helper">0 significa pouco provável e 10 muito provável.</p>
         <div className="nps-grid" role="group" aria-label="Nota de recomendação de 0 a 10">{Array.from({ length: 11 }, (_, n) => <button key={n} className={'nps-option nps-' + (n < 7 ? 'low' : n < 9 ? 'mid' : 'high') + (nps === n ? ' selected' : '')} onClick={() => { setNps(n); setError(''); }} aria-pressed={nps === n}>{n}</button>)}</div>
         <div className="scale-captions"><span>Pouco provável</span><span>Muito provável</span></div><div className="nps-legend"><span>0–6</span><span>7–8</span><span>9–10</span></div>
         {error && <p className="error-message" role="alert">{error}</p>}<Button className="bottom-action" onClick={() => nps === null ? setError('Escolha uma nota para continuar.') : go('comment')}>Continuar</Button>
       </div>}
-      {screen === 'comment' && <div className="screen">
+      {screen === 'comment' && <div className="screen"><BackButton onClick={goBack} />
         <div className="eyebrow">COMENTÁRIO OPCIONAL</div><button className="skip-link" onClick={() => go(nps !== null && nps < 7 ? 'care' : 'done')}>Pular</button>
         <h1>Obrigado pela sua avaliação!</h1><div className="success-card"><span>✓</span><div><strong>Resposta selecionada</strong><p>Que bom saber que você nos contou sobre seu atendimento.</p></div></div>
         <label className="field-label" htmlFor="comment">Quer deixar um comentário?</label><textarea id="comment" value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Conte o que mais gostou. Esta etapa é opcional." maxLength={500} />
         <Button className="bottom-action" onClick={() => { if (nps !== null && nps < 7) go('care'); else go('done'); }}>Continuar</Button>
       </div>}
-      {screen === 'care' && <div className="screen">
+      {screen === 'care' && <div className="screen"><BackButton onClick={goBack} />
         <div className="eyebrow">CUIDADO E ESCUTA</div><h1>Podemos entender melhor o que aconteceu?</h1><div className="care-illustration" aria-hidden="true">♡</div>
         <p className="helper">{followupSource === 'rating' ? `Você deu nota ${answers[ratingIndex]} para o atendimento da ${ratings[ratingIndex]!.area}. Se desejar, conte mais à Ouvidoria. Participar é opcional e você pode continuar a pesquisa sem preencher o formulário.` : 'Se você quiser, a Ouvidoria pode entrar em contato para ouvir seu relato. A escolha é sua e não altera seu atendimento.'}</p>
         <div className="button-stack"><Button onClick={() => { if (followupSource !== 'rating') setFollowupSource('nps'); setWantsContact(null); go('contact'); }}>{followupSource === 'rating' ? 'Quero falar com a Ouvidoria' : 'Sim, quero contato'}</Button><Button variante="secundario" onClick={declineCare}>{followupSource === 'rating' ? 'Continuar pesquisa' : 'Não, obrigado'}</Button></div>
       </div>}
-      {screen === 'contact' && <div className="screen">
+      {screen === 'contact' && <div className="screen"><BackButton onClick={goBack} />
         <div className="eyebrow">OUVIDORIA · CONSENTIMENTO E PRIVACIDADE</div><button className="skip-link" onClick={skipFollowup}>{followupSource === 'rating' ? 'Pular e continuar' : 'Pular'}</button><h1>{followupSource === 'rating' ? 'Quer contar um pouco mais?' : 'Como podemos falar com você?'}</h1>
         <form className="contact-form" onSubmit={submitContact}>
           <p className="helper">{followupSource === 'rating' ? `Você deu nota ${answers[ratingIndex]} para o atendimento da ${ratings[ratingIndex]!.area}. Se desejar, conte mais para a Ouvidoria.` : 'Se desejar, descreva sua experiência. A Ouvidoria poderá entrar em contato usando os dados informados.'}</p>
@@ -168,7 +179,7 @@ export function App() {
           {error && <p className="error-message" role="alert">{error}</p>}<Button type="submit" className="bottom-action">{followupSource === 'rating' ? 'Preparar solicitação e continuar' : 'Preparar solicitação'}</Button>
         </form>
       </div>}
-      {screen === 'done' && <div className="screen done-screen">
+      {screen === 'done' && <div className="screen done-screen"><BackButton onClick={goBack} />
         <div className="eyebrow">PESQUISA CONCLUÍDA</div><div className="done-icon">✓</div><h1>Obrigado por participar!</h1>
         <div className="submission-summary"><strong>Resumo das respostas</strong><div><span>Avaliações</span><b>{answers.filter((answer) => answer > 0).length} de {ratings.length} respondidas</b></div><div><span>Recomendação</span><b>{nps === null ? 'Não informada' : `${nps} de 10`}</b></div><div><span>Comentário</span><b>{comment.trim() ? 'Adicionado' : 'Não informado'}</b></div><div><span>Contato com a Ouvidoria</span><b>{contactDraftSubmitted ? 'Solicitação preparada' : 'Não solicitado'}</b></div></div>
         <p className="helper">{contactDraftSubmitted ? 'A solicitação foi preenchida nesta prévia, mas ainda não foi enviada à Ouvidoria.' : wantsContact ? 'Sua escolha foi respeitada. Nenhum dado de contato foi enviado.' : 'Sua opinião é importante e vai nos ajudar a melhorar o atendimento.'}</p>
@@ -177,6 +188,10 @@ export function App() {
     </section>
     <p className="page-foot">VivaCare · Cuidar também é ouvir</p>
   </main>;
+}
+
+function BackButton({ onClick }: { onClick: () => void }) {
+  return <button className="flow-back" type="button" onClick={onClick}>← Voltar</button>;
 }
 
 function ManagementLogin({ onBack, onPreview }: { onBack: () => void; onPreview: () => void }) {

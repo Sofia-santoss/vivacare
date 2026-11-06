@@ -40,6 +40,8 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 .progress-track { height: 4px; border-radius: 99px; background: #edf1f4; overflow: hidden; }
 .progress-track span { display: block; height: 100%; border-radius: inherit; background: #c8102e; transition: width .2s ease; }
 .screen { position: relative; display: flex; flex: 1; flex-direction: column; padding-top: 27px; }
+.flow-back { align-self: flex-start; margin: 0 0 13px; border: 0; padding: 3px 0; background: none; color: #a82832; font-size: 12px; font-weight: 650; }
+.flow-back:hover { color: #7f101d; text-decoration: underline; }
 .eyebrow { margin-bottom: 11px; color: #a82832; font-size: 10px; font-weight: 750; letter-spacing: .065em; }
 h1 { max-width: 320px; margin: 0 0 13px; color: #2a0806; font-size: clamp(23px, 6vw, 28px); font-weight: 760; line-height: 1.12; letter-spacing: -.55px; }
 .helper { margin: 0 0 18px; color: #697586; font-size: 13px; line-height: 1.5; }
