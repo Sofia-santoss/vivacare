@@ -4,7 +4,6 @@ import { Button } from './components/Button';
 import type { FormEvent } from 'react';
 
 type Screen = 'access' | 'welcome' | 'ratings' | 'nps' | 'comment' | 'care' | 'contact' | 'done';
-type FollowupSource = 'rating' | 'nps' | null;
 
 const ratings = [
   { title: 'Como foi o atendimento da Recepção?', area: 'Recepção' },
@@ -48,7 +47,6 @@ export function App() {
   const [nps, setNps] = useState<number | null>(null);
   const [comment, setComment] = useState('');
   const [wantsContact, setWantsContact] = useState<boolean | null>(null);
-  const [followupSource, setFollowupSource] = useState<FollowupSource>(null);
   const [contactDraftSubmitted, setContactDraftSubmitted] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -65,7 +63,7 @@ export function App() {
     else if (screen === 'ratings') go('welcome');
     else if (screen === 'nps') { setRatingIndex(ratings.length - 1); go('ratings'); }
     else if (screen === 'comment') go('nps');
-    else if (screen === 'care') go(followupSource === 'rating' ? 'ratings' : 'comment');
+    else if (screen === 'care') go('comment');
     else if (screen === 'contact') go('care');
     else if (screen === 'done') go(nps !== null && nps < 7 ? 'care' : nps !== null ? 'comment' : 'ratings');
   };
@@ -77,32 +75,17 @@ export function App() {
   const finishRating = (value: number) => {
     setAnswers((current) => { const updated = [...current]; updated[ratingIndex] = value; return updated; });
     setError('');
-    if (value <= 3) {
-      setFollowupSource('rating');
-      setWantsContact(null);
-      go('care');
-    }
   };
   const declineCare = () => {
     setWantsContact(false);
-    if (followupSource === 'rating') continueAfterFollowup();
-    else go('done');
+    go('done');
   };
   const continueAfterFollowup = () => {
-    const source = followupSource;
-    setFollowupSource(null);
     setName('');
     setPhone('');
     setStatement('');
     setConsent(false);
-    if (source === 'rating' && ratingIndex < ratings.length - 1) {
-      setRatingIndex((current) => current + 1);
-      go('ratings');
-    } else if (source === 'rating') {
-      go('nps');
-    } else {
-      go('done');
-    }
+    go('done');
   };
   const skipFollowup = () => {
     setWantsContact(false);
@@ -163,27 +146,27 @@ export function App() {
       </div>}
       {screen === 'care' && <div className="screen"><BackButton onClick={goBack} />
         <div className="eyebrow">CUIDADO E ESCUTA</div><h1>Podemos entender melhor o que aconteceu?</h1><div className="care-illustration" aria-hidden="true">♡</div>
-        <p className="helper">{followupSource === 'rating' ? `Você deu nota ${answers[ratingIndex]} para o atendimento da ${ratings[ratingIndex]!.area}. Se desejar, conte mais à Ouvidoria. Participar é opcional e você pode continuar a pesquisa sem preencher o formulário.` : 'Se você quiser, a Ouvidoria pode entrar em contato para ouvir seu relato. A escolha é sua e não altera seu atendimento.'}</p>
-        <div className="button-stack"><Button onClick={() => { if (followupSource !== 'rating') setFollowupSource('nps'); setWantsContact(null); go('contact'); }}>{followupSource === 'rating' ? 'Quero falar com a Ouvidoria' : 'Sim, quero contato'}</Button><Button variante="secundario" onClick={declineCare}>{followupSource === 'rating' ? 'Continuar pesquisa' : 'Não, obrigado'}</Button></div>
+        <p className="helper">Se você quiser, a Ouvidoria pode entrar em contato para ouvir seu relato. A escolha é sua e não altera seu atendimento.</p>
+        <div className="button-stack"><Button onClick={() => { setWantsContact(null); go('contact'); }}>Sim, quero contato</Button><Button variante="secundario" onClick={declineCare}>Não, obrigado</Button></div>
       </div>}
       {screen === 'contact' && <div className="screen"><BackButton onClick={goBack} />
-        <div className="eyebrow">OUVIDORIA · CONSENTIMENTO E PRIVACIDADE</div><button className="skip-link" onClick={skipFollowup}>{followupSource === 'rating' ? 'Pular e continuar' : 'Pular'}</button><h1>{followupSource === 'rating' ? 'Quer contar um pouco mais?' : 'Como podemos falar com você?'}</h1>
+        <div className="eyebrow">OUVIDORIA · CONSENTIMENTO E PRIVACIDADE</div><button className="skip-link" onClick={skipFollowup}>Pular</button><h1>Como podemos falar com você?</h1>
         <form className="contact-form" onSubmit={submitContact}>
-          <p className="helper">{followupSource === 'rating' ? `Você deu nota ${answers[ratingIndex]} para o atendimento da ${ratings[ratingIndex]!.area}. Se desejar, conte mais para a Ouvidoria.` : 'Se desejar, descreva sua experiência. A Ouvidoria poderá entrar em contato usando os dados informados.'}</p>
+          <p className="helper">Se desejar, descreva sua experiência. A Ouvidoria poderá entrar em contato usando os dados informados.</p>
           <label className="field-label" htmlFor="name">Nome (opcional)</label><input id="name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Como podemos chamar você?" />
           <label className="field-label" htmlFor="phone">Telefone ou celular para retorno</label><input id="phone" type="tel" inputMode="tel" autoComplete="tel" maxLength={15} value={phone} onChange={(e) => setPhone(formatPhone(e.target.value))} placeholder="(11) 98888-1234" />
           <label className="field-label" htmlFor="statement">Conte sua experiência</label><textarea id="statement" value={statement} onChange={(e) => setStatement(e.target.value)} placeholder="Conte o que aconteceu durante o atendimento." maxLength={1000} />
           <label className="consent"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} /><span>Li e concordo com o termo de consentimento.</span></label>
           <button className="text-link" type="button" onClick={() => setError('O termo de privacidade será apresentado pela instituição antes do envio.')}>Consultar termo de privacidade</button>
           <p className="integration-note">O contato é opcional. Nesta prévia, seus dados não são enviados; o encaminhamento depende da integração com a API.</p>
-          {error && <p className="error-message" role="alert">{error}</p>}<Button type="submit" className="bottom-action">{followupSource === 'rating' ? 'Preparar solicitação e continuar' : 'Preparar solicitação'}</Button>
+          {error && <p className="error-message" role="alert">{error}</p>}<Button type="submit" className="bottom-action">Preparar solicitação</Button>
         </form>
       </div>}
       {screen === 'done' && <div className="screen done-screen"><BackButton onClick={goBack} />
         <div className="eyebrow">PESQUISA CONCLUÍDA</div><div className="done-icon">✓</div><h1>Obrigado por participar!</h1>
         <div className="submission-summary"><strong>Resumo das respostas</strong><div><span>Avaliações</span><b>{answers.filter((answer) => answer > 0).length} de {ratings.length} respondidas</b></div><div><span>Recomendação</span><b>{nps === null ? 'Não informada' : `${nps} de 10`}</b></div><div><span>Comentário</span><b>{comment.trim() ? 'Adicionado' : 'Não informado'}</b></div><div><span>Contato com a Ouvidoria</span><b>{contactDraftSubmitted ? 'Solicitação preparada' : 'Não solicitado'}</b></div></div>
         <p className="helper">{contactDraftSubmitted ? 'A solicitação foi preenchida nesta prévia, mas ainda não foi enviada à Ouvidoria.' : wantsContact ? 'Sua escolha foi respeitada. Nenhum dado de contato foi enviado.' : 'Sua opinião é importante e vai nos ajudar a melhorar o atendimento.'}</p>
-        <p className="muted">Sua opinião é importante e vai nos ajudar a melhorar o atendimento.</p><p className="integration-note">Esta prévia não salva respostas. O envio será ativado pela integração com a API.</p><Button className="bottom-action" onClick={() => { setAnswers([]); setNps(null); setComment(''); setStatement(''); setPhone(''); setName(''); setConsent(false); setWantsContact(null); setFollowupSource(null); setContactDraftSubmitted(false); setRatingIndex(0); go('access'); }}>Encerrar</Button>
+        <p className="muted">Sua opinião é importante e vai nos ajudar a melhorar o atendimento.</p><p className="integration-note">Esta prévia não salva respostas. O envio será ativado pela integração com a API.</p><Button className="bottom-action" onClick={() => { setAnswers([]); setNps(null); setComment(''); setStatement(''); setPhone(''); setName(''); setConsent(false); setWantsContact(null); setContactDraftSubmitted(false); setRatingIndex(0); go('access'); }}>Encerrar</Button>
       </div>}
     </section>
     <p className="page-foot">VivaCare · Cuidar também é ouvir</p>
