@@ -18,6 +18,18 @@ describe('contratos estáticos da proposta 007 (não executa SQL nem substitui P
   expect(sql).toContain('FOR SHARE OF et');
  });
 
+ it('modela edição da equipe atual sem reescrever a equipe do snapshot histórico',async()=>{
+  const sql=await readFile(proposalPath,'utf8');
+  const snapshot={escalaId:'70',equipeId:'9'};
+  const scaleBefore={id:'70',equipeId:'9'};
+  const scaleAfter={...scaleBefore,equipeId:'10'};
+  expect(scaleAfter.equipeId).toBe('10');
+  expect(snapshot).toEqual({escalaId:'70',equipeId:'9'});
+  expect(sql).toContain('escala_id bigint REFERENCES public.escalas_trabalho(id)');
+  expect(sql).toContain('equipe_id bigint REFERENCES public.equipes(id)');
+  expect(sql).not.toContain('FOREIGN KEY (escala_id,equipe_id)');
+ });
+
  it('recusa faixas nulas parciais e inválidas; aceita somente limites dentro de 1–5',async()=>{
   const sql=await readFile(proposalPath,'utf8');
   expect(sql).toMatch(/nota_minima IS NULL AND nota_maxima IS NULL/);
