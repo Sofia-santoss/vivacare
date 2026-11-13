@@ -1,6 +1,6 @@
 # Proposta 007: escalas e submissÃµes de pesquisa
 
-A sequÃªncia oficial contÃ©m `006_privilegios_modulo_usuarios.up.sql`; portanto, esta proposta usa 007. Ela nÃ£o estÃ¡ em `database/migrations` e nÃ£o Ã© executada pelo runner. A proposta permite turno nulo quando nenhum turno cobre o envio, adiciona limites explÃ­citos Ã s perguntas `NOTA`, persiste snapshots e resultados da associaÃ§Ã£o, guarda idempotÃªncia, cria rate limiting IP independente e suprime agregados com menos de trÃªs respostas.
+A cadeia 001–006 preparada no workspace ja reserva a versao 006 para `006_privilegios_modulo_usuarios.up.sql`; por isso esta proposta reserva 007. A cadeia anterior ainda precisa ser versionada e aplicada pelo fluxo oficial antes de qualquer promocao de 007. Esta proposta continua em `database/proposals` e nao e descoberta pelo runner.
 
 ## InventÃ¡rio estÃ¡tico de perguntas `NOTA`
 
@@ -23,6 +23,8 @@ Ver tambÃ©m [PolÃ­tica de privacidade das pesquisas](../../docs/PRIVACIDADE_
 
 `respostas_escalas` mantem FKs individuais para escala e equipe. O trigger valida que a equipe pertence a escala e bloqueia a linha da escala durante a associacao. Uma edicao posterior pode alterar a equipe atual sem reescrever o snapshot historico. O snapshot preserva IDs e contexto, nao copia nomes mutaveis de hospital, setor ou equipe.
 
-A proposta permanece fora de `database/migrations` enquanto o inventario das perguntas reais `NOTA` e suas faixas aprovadas estiver pendente. O teste local protege essa separacao; a sequencia oficial segue de 001 a 006 ate que a decisao de negocio e a validacao da proposta sejam concluidas.
+A proposta permanece fora de `database/migrations`; o runner continua descobrindo apenas a cadeia 001–006 preparada no workspace. A sequencia 007 deve ser adicionada ao runner somente depois da aprovacao das faixas e da promocao formal do baseline/migrations anteriores.
 
 A chave HMAC do limite IP publico usa `AUTH_LOGIN_THROTTLE_SECRET`. Configure o mesmo segredo aleatorio em todas as instancias e mantenha-o estavel enquanto os buckets estiverem ativos; a rotacao muda as chaves derivadas e reinicia os contadores. `PUBLIC_SURVEY_FINGERPRINT_SECRET` e separado e deve permanecer estavel enquanto houver registros de idempotencia.
+
+Quando promovida, a proposta 007 permitira turno nulo, configuracao de faixas NOTA, snapshots de associacao, idempotencia, rate limiting IP e supressao de agregados pequenos. Ela depende do baseline e das migrations anteriores, inclusive da tabela `eventos_auditoria` da migration 003 usada pelo modulo de escalas. Nao aplicar nem promover enquanto essas dependencias nao estiverem versionadas e aplicadas na ordem oficial.
