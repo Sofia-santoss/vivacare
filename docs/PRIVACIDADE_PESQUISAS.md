@@ -1,0 +1,9 @@
+# PolÃ­tica de privacidade das pesquisas
+
+O endpoint pÃºblico aceita somente NPS e respostas identificadas por IDs de perguntas. Rejeita campos adicionais de identidade/contato. A gravaÃ§Ã£o define a resposta como anÃ´nima, sem telefone ou vÃ­nculo com usuÃ¡rio. O endereÃ§o IP Ã© convertido em HMAC para o limitador, sem guardar IP bruto; o cÃ³digo da pesquisa nÃ£o integra essa chave. A chave de idempotÃªncia Ã© UUIDv4 aleatÃ³ria e Ã© persistida somente como hash. O fingerprint do conteÃºdo Ã© HMAC com `PUBLIC_SURVEY_FINGERPRINT_SECRET` do servidor e separação de domínio; mantenha-o estável enquanto existirem registros de idempotência, sem guardar payload em claro.
+
+Respostas textuais continuam armazenadas porque fazem parte das funcionalidades previstas e nÃ£o sÃ£o apagadas ou transformadas automaticamente. SÃ£o conteÃºdo potencialmente identificÃ¡vel: a aplicaÃ§Ã£o nÃ£o deve expÃ´-las em indicadores agregados. A view por equipe proposta contÃ©m somente totais e mÃ©tricas NPS, sem IDs de resposta, timestamp preciso ou texto livre. A view geral permanece agregada por hospital/setor/dia/turno e inclui respostas sem equipe.
+
+Ambas as famÃ­lias de indicadores suprimem grupos com menos de trÃªs respostas. O limite reduz exposiÃ§Ã£o direta, mas nÃ£o elimina inferÃªncia por consultas repetidas ou filtros sobrepostos. Acesso a respostas individuais e texto livre exige uma funcionalidade separada, autorizaÃ§Ã£o explÃ­cita, finalidade definida e revisÃ£o de privacidade; nÃ£o hÃ¡ rota pÃºblica para consultar respostas individuais.
+
+A proposta `database/proposals/007_escalas_pesquisas.up.sql` revoga leitura ampla de respostas e detalhes para `vivacare_app`, mantendo apenas colunas necessÃ¡rias Ã  submissÃ£o e acesso a views agregadas. Isso depende de validar grants herdados e ownership no PostgreSQL antes de liberar. Os indicadores por equipe devem continuar consultando apenas `resultado='ASSOCIADA'`.
