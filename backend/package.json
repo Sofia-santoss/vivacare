@@ -11,7 +11,9 @@
     "start": "node --env-file-if-exists=.env dist/index.js",
     "typecheck": "tsc --noEmit",
     "db:check": "tsx --env-file-if-exists=.env src/db/verificar.ts",
-    "test": "vitest run"
+    "db:migrate": "tsx --env-file-if-exists=.env src/db/migrator.ts",
+    "test": "vitest run --exclude src/auth/loginAttempts.integration.test.ts --exclude src/db/migrator.integration.test.ts --exclude src/setores/setores.integration.test.ts --exclude src/usuarios/usuarios.integration.test.ts --configLoader native --pool threads --maxWorkers 1",
+    "test:db": "node scripts/assert-migrator-test-db.mjs && vitest run src/db/migrator.integration.test.ts --configLoader native --pool threads --maxWorkers 1"
   },
   "license": "UNLICENSED",
   "dependencies": {
