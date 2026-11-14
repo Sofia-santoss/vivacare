@@ -86,6 +86,12 @@ describe('proteções do runner versionado', () => {
     expect(rollback.indexOf('RAISE EXCEPTION')).toBeLessThan(rollback.indexOf('DROP TABLE public.perfis_permissoes'));
   });
 
+  it('refuses to drop hospital assignments during migration 002 rollback', async () => {
+    const rollback = await readFile(resolve(migrationDirectory, '002_usuarios_hospital.down.sql'), 'utf8');
+    expect(rollback).toContain('IF EXISTS (SELECT 1 FROM public.usuarios)');
+    expect(rollback.indexOf('RAISE EXCEPTION')).toBeLessThan(rollback.indexOf('DROP INDEX'));
+  });
+
   it('wraps all reversible migrations in atomic rollback scripts and keeps 005 forward-only', async () => {
     const files = await readdir(migrationDirectory);
     for (const version of ['002_usuarios_hospital', '003_auditoria_administrativa', '004_matriz_autorizacao', '006_privilegios_modulo_usuarios']) {

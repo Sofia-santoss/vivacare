@@ -63,3 +63,5 @@ Na migration 001, a sequencia de identidade de sessoes recebe somente USAGE para
 Os modulos de negocio citados nesta documentacao sao dependencias da aplicacao e nao fazem parte deste pacote de versionamento da cadeia de migrations. A presenca de arquivos desses modulos no workspace nao significa que foram publicados com esta cadeia.
 
 O teste real da cadeia e executado somente por `npm run test:db`; o script de seguranca valida NODE_ENV=test, host loopback, nome _test e VIVACARE_TEST_DB_DISPOSABLE=YES antes do Vitest. Esse comando conecta e aplica baseline/migrations no banco descartavel configurado; nao o execute sobre banco de aplicacao.
+
+O rollback 002 tambem e conservador: recusa remover `usuarios.hospital_id` enquanto houver qualquer usuario, pois nao e possivel distinguir atribuicoes derivadas no backfill das atribuicoes criadas depois. Preserve os dados por um procedimento forward-only aprovado antes de qualquer tentativa de reversao.
