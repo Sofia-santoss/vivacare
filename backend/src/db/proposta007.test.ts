@@ -13,6 +13,7 @@ describe('contratos estáticos da proposta 007 (não executa SQL nem substitui P
   expect(sql).toContain('escala_id bigint REFERENCES public.escalas_trabalho(id)');
   expect(sql).toContain('equipe_id bigint REFERENCES public.equipes(id)');
   expect(sql).not.toContain('FOREIGN KEY (escala_id,equipe_id)');
+  expect(sql).not.toMatch(/UNIQUE\s*\(\s*escala_id\s*,\s*equipe_id\s*\)/i);
   expect(sql).toContain('e.id=et.equipe_id AND e.setor_id=s.id');
   expect(sql).toContain('et.status<>'+'\'CANCELADA\'');
   expect(sql).toContain('FOR SHARE OF et');
