@@ -1,6 +1,6 @@
 # Organização do quadro Kanban
 
-**Link do quadro:** pendente de criação pela dupla. Não há URL pública cadastrada no repositório.
+**Quadro ativo:** [VivaCare — pesquisa hospitalar no Trello](https://trello.com/b/F2VHl9RQ/vivacare-pesquisa-hospitalar).
 
 ## Colunas sugeridas
 
@@ -29,4 +29,4 @@
 - Validar fluxo do paciente e formulário de Ouvidoria com o cliente.
 - Gerar relatório de testes e cobertura após executar as suítes autorizadas.
 
-Criar o projeto no GitHub Projects e inserir aqui sua URL; até isso acontecer, este arquivo registra apenas a proposta de organização, não um quadro ativo.
+O quadro ativo está no Trello. Este arquivo descreve o fluxo e as informações recomendadas para os cartões; mantenha os estados atualizados no quadro compartilhado.

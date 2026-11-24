@@ -107,6 +107,7 @@ O schema atual não oferece uma lista de opções para perguntas do tipo `OPCAO`
 - [Arquitetura do backend, segurança e escalabilidade](docs/arquitetura-backend.md)
 - [Padrões de branches, commits e revisão](docs/padroes-git.md)
 - [Plano e relatório de testes](docs/plano-e-relatorio-de-testes.md)
+- [Quadro Kanban do VivaCare no Trello](https://trello.com/b/F2VHl9RQ/vivacare-pesquisa-hospitalar)
 - [Kanban: fluxo e tarefas iniciais](docs/KANBAN.md)
 - [Especificação OpenAPI](docs/openapi.yaml)
 - [Privacidade das pesquisas](docs/PRIVACIDADE_PESQUISAS.md)
@@ -115,7 +116,7 @@ O schema atual não oferece uma lista de opções para perguntas do tipo `OPCAO`
 - [Repositórios de persistência e consultas críticas](docs/mapeamento-classes-e-consultas.md)
 - [Segurança e hospedagem cloud do banco](docs/seguranca-e-nuvem.md)
 
-A especificação OpenAPI está versionada no repositório. A interface Swagger online e um quadro Kanban compartilhado ainda dependem da ativação/configuração dos serviços correspondentes; não existe URL pública ativa para informar neste momento.
+A especificação OpenAPI está versionada no repositório; a interface Swagger online ainda depende de publicação. O quadro Kanban compartilhado está disponível no [Trello](https://trello.com/b/F2VHl9RQ/vivacare-pesquisa-hospitalar).
 
 ## Verificações de código
 
