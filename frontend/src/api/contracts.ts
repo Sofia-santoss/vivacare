@@ -1,6 +1,6 @@
 /**
  * Contratos iniciais derivados do schema PostgreSQL e de docs/PRIVACIDADE_PESQUISAS.md.
- * A leitura publica da pesquisa usa GET /api/public/pesquisas/:codigo.
+ * A pesquisa usa GET/POST /api/public/pesquisas/:codigo; a Ouvidoria tem POST /api/public/ouvidoria separado.
  * Dados de contato ficam fora da submissÃ£o pÃºblica e exigem contrato separado para Ouvidoria.
  */
 export type DatabaseId = string;
@@ -47,4 +47,20 @@ export interface SubmitPublicSurveyMetadata {
 export interface ApiErrorBody {
   code: string;
   message: string;
+}
+
+export type ManifestationType = 'ELOGIO' | 'RECLAMACAO' | 'SUGESTAO';
+
+/** Dados identificaveis enviados apenas pelo fluxo separado da Ouvidoria. */
+export interface PublicOmbudsmanBody {
+  type: ManifestationType;
+  name?: string;
+  phone: string;
+  statement: string;
+  consent: true;
+}
+
+export interface PublicSubmissionResult {
+  status: 'submitted' | 'already_submitted';
+  protocol?: string;
 }

@@ -1,202 +1,25 @@
-import { useEffect, useRef, useState } from 'react';
-import {
-  formatBrazilPhone,
-  validateContactRequest,
-  validateNps,
-  validatePasswordConfirmation,
-  validateRating,
-} from './domain/validation.js';
-import { Dashboard } from './Dashboard';
-import { Button } from './components/Button';
+import { useState } from 'react';
 import type { FormEvent } from 'react';
+import { Dashboard } from './Dashboard';
+import { PublicSurveyFlow } from './components/PublicSurveyFlow';
+import { Button } from './components/Button';
+import { validatePasswordConfirmation } from './domain/validation.js';
 
-type Screen = 'access' | 'welcome' | 'ratings' | 'nps' | 'comment' | 'care' | 'contact' | 'done';
-
-const ratings = [
-  { title: 'Como foi o atendimento da Recepção?', area: 'Recepção' },
-  { title: 'Como foi o atendimento da Triagem?', area: 'Triagem' },
-  { title: 'Como foi o atendimento da Enfermagem?', area: 'Enfermagem' },
-  { title: 'Como foi o atendimento da equipe médica?', area: 'Equipe médica' },
-];
-const scaleLabels = ['Muito ruim', 'Ruim', 'Regular', 'Bom', 'Muito bom'];
-const screenLabels: Record<Screen, string> = {
-  access: 'Acesso à pesquisa',
-  welcome: 'Boas-vindas',
-  ratings: 'Avaliação do atendimento',
-  nps: 'Recomendação do hospital',
-  comment: 'Comentário sobre o atendimento',
-  care: 'Contato com a Ouvidoria',
-  contact: 'Dados de contato para a Ouvidoria',
-  done: 'Confirmação da pesquisa',
-};
+type StaffView = 'patient' | 'login' | 'dashboard';
 
 function Brand() {
-  return <div className="brand" aria-label="Fundação Hospitalar Dr. Oswaldo Diesel">
+  return <div className="brand" aria-label="Fundacao Hospitalar Dr. Oswaldo Diesel">
     <span className="brand-mark" aria-hidden="true"><i /><i /><i /></span>
-    <span className="brand-name">FHDOD<small>Fundação Hospitalar<br />Dr. Oswaldo Diesel</small></span>
+    <span className="brand-name">FHDOD<small>Fundacao Hospitalar<br />Dr. Oswaldo Diesel</small></span>
   </div>;
 }
 
-function RatingFace({ index }: { index: number }) {
-  const mouth = [
-    'M7.5 17c1.2-2.1 2.7-3.1 4.5-3.1s3.3 1 4.5 3.1',
-    'M8 16.5c1.1-1.5 2.4-2.2 4-2.2s2.9.7 4 2.2',
-    'M8 16h8',
-    'M8 15.3c1.1 1.5 2.4 2.2 4 2.2s2.9-.7 4-2.2',
-    'M7.5 14.8c1.2 2.1 2.7 3.1 4.5 3.1s3.3-1 4.5-3.1',
-  ][index] ?? 'M8 16h8';
-  return <svg className="face face-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><circle cx="9" cy="10" r=".7" fill="currentColor" /><circle cx="15" cy="10" r=".7" fill="currentColor" /><path d={mouth} /></svg>;
-}
-
 export function App() {
-  const [screen, setScreen] = useState<Screen>('access');
-  const [staffView, setStaffView] = useState<'patient' | 'login' | 'dashboard'>('patient');
-  const [ratingIndex, setRatingIndex] = useState(0);
-  const [answers, setAnswers] = useState<number[]>([]);
-  const [nps, setNps] = useState<number | null>(null);
-  const [comment, setComment] = useState('');
-  const [wantsContact, setWantsContact] = useState<boolean | null>(null);
-  const [contactDraftSubmitted, setContactDraftSubmitted] = useState(false);
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [statement, setStatement] = useState('');
-  const [consent, setConsent] = useState(false);
-  const [error, setError] = useState('');
-  const screenRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (staffView === 'patient') screenRef.current?.focus();
-  }, [screen, staffView]);
-
-  const progress = screen === 'ratings' ? 14 + ratingIndex * 14 : screen === 'nps' ? 71 : screen === 'comment' || screen === 'care' ? 86 : screen === 'contact' ? 96 : 0;
-  const go = (next: Screen) => { setError(''); setScreen(next); };
-  const goBack = () => {
-    setError('');
-    if (screen === 'welcome') go('access');
-    else if (screen === 'ratings' && ratingIndex > 0) { setRatingIndex((current) => current - 1); go('ratings'); }
-    else if (screen === 'ratings') go('welcome');
-    else if (screen === 'nps') { setRatingIndex(ratings.length - 1); go('ratings'); }
-    else if (screen === 'comment') go('nps');
-    else if (screen === 'care') go('comment');
-    else if (screen === 'contact') go('care');
-    else if (screen === 'done') go(nps !== null && nps < 7 ? 'care' : nps !== null ? 'comment' : 'ratings');
-  };
-  const nextRating = () => {
-    const validation = validateRating(answers[ratingIndex]);
-    if (validation) { setError(validation.message); return; }
-    if (ratingIndex < ratings.length - 1) setRatingIndex(ratingIndex + 1);
-    else go('nps');
-  };
-  const continueFromNps = () => {
-    const validation = validateNps(nps);
-    if (validation) { setError(validation.message); return; }
-    go('comment');
-  };
-
-  const finishRating = (value: number) => {
-    setAnswers((current) => { const updated = [...current]; updated[ratingIndex] = value; return updated; });
-    setError('');
-  };
-  const declineCare = () => {
-    setWantsContact(false);
-    go('done');
-  };
-  const continueAfterFollowup = () => {
-    setName('');
-    setPhone('');
-    setStatement('');
-    setConsent(false);
-    go('done');
-  };
-  const skipFollowup = () => {
-    setWantsContact(false);
-    continueAfterFollowup();
-  };
-  const submitContact = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const validation = validateContactRequest({ statement, phone, consent });
-    if (validation) { setError(validation.message); return; }
-    setWantsContact(true);
-    setContactDraftSubmitted(true);
-    continueAfterFollowup();
-  };
-
+  const [staffView, setStaffView] = useState<StaffView>('patient');
   if (staffView === 'dashboard') return <Dashboard onBack={() => setStaffView('patient')} />;
   if (staffView === 'login') return <ManagementLogin onBack={() => setStaffView('patient')} onPreview={() => setStaffView('dashboard')} />;
-
-  return <main className="page">
-    <section className="survey">
-      <header className="topbar"><Brand /><span className="survey-name">Pesquisa — Recepção</span></header>
-      {progress > 0 && <div className="progress-wrap">
-        <div className="progress-meta"><span>Etapa {screen === 'ratings' ? ratingIndex + 1 : screen === 'nps' ? 5 : screen === 'comment' || screen === 'care' ? 6 : 7} de 7</span><span>{progress}%</span></div>
-        <div className="progress-track"><span style={{ width: progress + '%' }} /></div>
-      </div>}
-      {screen === 'access' && <div className="screen access-screen" ref={screenRef} tabIndex={-1} role="region" aria-label={screenLabels[screen]}>
-        <div className="welcome-art" aria-hidden="true"><span>✚</span></div>
-        <div className="eyebrow">SUA OPINIÃO É IMPORTANTE</div><h1>Queremos saber como foi sua experiência.</h1>
-        <div className="info-card"><span className="info-icon">▣</span><span><small>SETOR IDENTIFICADO</small><strong>Pesquisa — Recepção</strong></span></div>
-        <div className="privacy-card"><span>♧</span><p>Participar é voluntário. Você pode parar a qualquer momento.</p></div>
-        <Button className="bottom-action" onClick={() => go('welcome')}>Começar avaliação</Button>
-        <button className="staff-link" onClick={() => setStaffView('login')}>Acesso da equipe</button>
-      </div>}
-      {screen === 'welcome' && <div className="screen" ref={screenRef} tabIndex={-1} role="region" aria-label={screenLabels[screen]}><BackButton onClick={goBack} />
-        <div className="eyebrow">BOAS-VINDAS</div><h1>Sua opinião ajuda a melhorar nosso atendimento.</h1>
-        <div className="time-note"><span>◷</span> Leva menos de 2 minutos.</div>
-        <ul className="promise-list"><li><span>✳</span> Uma pergunta por tela</li><li><span>♧</span> Respostas usadas para melhorar o cuidado</li><li><span>♡</span> Você pode encerrar quando quiser</li></ul>
-        <Button className="bottom-action" onClick={() => go('ratings')}>Começar</Button>
-      </div>}
-      {screen === 'ratings' && <div className="screen" ref={screenRef} tabIndex={-1} role="region" aria-label={screenLabels[screen]}><BackButton onClick={goBack} />
-        <div className="eyebrow">AVALIAÇÃO · {ratings[ratingIndex]!.area.toUpperCase()}</div><h1>{ratings[ratingIndex]!.title}</h1>
-        <p className="helper">Toque no rosto que melhor representa sua experiência.</p>
-        <div className="rating-grid" role="group" aria-label="Avaliação de 1 a 5">{scaleLabels.map((label, index) => <button key={label} className={'rating-option ' + (answers[ratingIndex] === index + 1 ? 'selected' : '')} onClick={() => finishRating(index + 1)} aria-label={`Nota ${index + 1}: ${label}`} aria-pressed={answers[ratingIndex] === index + 1}><RatingFace index={index} /><span>{index + 1}</span><small>{label}</small></button>)}</div>
-        {(answers[ratingIndex] ?? 0) > 0 && <div className="selected-note">✓ {answers[ratingIndex] ?? 0} — {scaleLabels[(answers[ratingIndex] ?? 1) - 1]} selecionado</div>}
-        {error && <p className="error-message" role="alert">{error}</p>}<Button className="bottom-action" onClick={nextRating}>Continuar</Button>
-      </div>}
-      {screen === 'nps' && <div className="screen" ref={screenRef} tabIndex={-1} role="region" aria-label={screenLabels[screen]}><BackButton onClick={goBack} />
-        <div className="eyebrow">RECOMENDAÇÃO</div><h1>De 0 a 10, quanto você recomendaria este hospital?</h1><p className="helper">0 significa pouco provável e 10 muito provável.</p>
-        <div className="nps-grid" role="group" aria-label="Nota de recomendação de 0 a 10">{Array.from({ length: 11 }, (_, n) => <button key={n} className={'nps-option nps-' + (n < 7 ? 'low' : n < 9 ? 'mid' : 'high') + (nps === n ? ' selected' : '')} onClick={() => { setNps(n); setError(''); }} aria-pressed={nps === n}>{n}</button>)}</div>
-        <div className="scale-captions"><span>Pouco provável</span><span>Muito provável</span></div><div className="nps-legend"><span>0–6</span><span>7–8</span><span>9–10</span></div>
-        {error && <p className="error-message" role="alert">{error}</p>}<Button className="bottom-action" onClick={continueFromNps}>Continuar</Button>
-      </div>}
-      {screen === 'comment' && <div className="screen" ref={screenRef} tabIndex={-1} role="region" aria-label={screenLabels[screen]}><BackButton onClick={goBack} />
-        <div className="eyebrow">COMENTÁRIO OPCIONAL</div><button className="skip-link" onClick={() => go(nps !== null && nps < 7 ? 'care' : 'done')}>Pular</button>
-        <h1>Obrigado pela sua avaliação!</h1><div className="success-card"><span>✓</span><div><strong>Resposta selecionada</strong><p>Que bom saber que você nos contou sobre seu atendimento.</p></div></div>
-        <label className="field-label" htmlFor="comment">Quer deixar um comentário?</label><textarea id="comment" value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Conte o que mais gostou. Esta etapa é opcional." maxLength={500} />
-        <Button className="bottom-action" onClick={() => { if (nps !== null && nps < 7) go('care'); else go('done'); }}>Continuar</Button>
-      </div>}
-      {screen === 'care' && <div className="screen" ref={screenRef} tabIndex={-1} role="region" aria-label={screenLabels[screen]}><BackButton onClick={goBack} />
-        <div className="eyebrow">CUIDADO E ESCUTA</div><h1>Podemos entender melhor o que aconteceu?</h1><div className="care-illustration" aria-hidden="true">♡</div>
-        <p className="helper">Se você quiser, a Ouvidoria pode entrar em contato para ouvir seu relato. A escolha é sua e não altera seu atendimento.</p>
-        <div className="button-stack"><Button onClick={() => { setWantsContact(null); go('contact'); }}>Sim, quero contato</Button><Button variante="secundario" onClick={declineCare}>Não, obrigado</Button></div>
-      </div>}
-      {screen === 'contact' && <div className="screen" ref={screenRef} tabIndex={-1} role="region" aria-label={screenLabels[screen]}><BackButton onClick={goBack} />
-        <div className="eyebrow">OUVIDORIA · CONSENTIMENTO E PRIVACIDADE</div><button className="skip-link" onClick={skipFollowup}>Pular</button><h1>Como podemos falar com você?</h1>
-        <form className="contact-form" onSubmit={submitContact}>
-          <p className="helper">Se desejar, descreva sua experiência. A Ouvidoria poderá entrar em contato usando os dados informados.</p>
-          <label className="field-label" htmlFor="name">Nome (opcional)</label><input id="name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Como podemos chamar você?" />
-          <label className="field-label" htmlFor="phone">Telefone ou celular para retorno</label><input id="phone" type="tel" inputMode="tel" autoComplete="tel" maxLength={15} value={phone} onChange={(e) => setPhone(formatBrazilPhone(e.target.value))} placeholder="(11) 98888-1234" />
-          <label className="field-label" htmlFor="statement">Conte sua experiência</label><textarea id="statement" value={statement} onChange={(e) => setStatement(e.target.value)} placeholder="Conte o que aconteceu durante o atendimento." maxLength={1000} />
-          <label className="consent"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} /><span>Li e concordo com o termo de consentimento.</span></label>
-          <button className="text-link" type="button" onClick={() => setError('O termo de privacidade será apresentado pela instituição antes do envio.')}>Consultar termo de privacidade</button>
-          <p className="integration-note">O contato é opcional. Nesta prévia, seus dados não são enviados; o encaminhamento depende da integração com a API.</p>
-          {error && <p className="error-message" role="alert">{error}</p>}<Button type="submit" className="bottom-action">Preparar solicitação</Button>
-        </form>
-      </div>}
-      {screen === 'done' && <div className="screen done-screen" ref={screenRef} tabIndex={-1} role="region" aria-label={screenLabels[screen]}><BackButton onClick={goBack} />
-        <div className="eyebrow">PESQUISA CONCLUÍDA</div><div className="done-icon">✓</div><h1>Obrigado por participar!</h1>
-        <div className="submission-summary"><strong>Resumo das respostas</strong><div><span>Avaliações</span><b>{answers.filter((answer) => answer > 0).length} de {ratings.length} respondidas</b></div><div><span>Recomendação</span><b>{nps === null ? 'Não informada' : `${nps} de 10`}</b></div><div><span>Comentário</span><b>{comment.trim() ? 'Adicionado' : 'Não informado'}</b></div><div><span>Contato com a Ouvidoria</span><b>{contactDraftSubmitted ? 'Solicitação preparada' : 'Não solicitado'}</b></div></div>
-        <p className="helper">{contactDraftSubmitted ? 'A solicitação foi preenchida nesta prévia, mas ainda não foi enviada à Ouvidoria.' : wantsContact ? 'Sua escolha foi respeitada. Nenhum dado de contato foi enviado.' : 'Sua opinião é importante e vai nos ajudar a melhorar o atendimento.'}</p>
-        <p className="muted">Sua opinião é importante e vai nos ajudar a melhorar o atendimento.</p><p className="integration-note">Esta prévia não salva respostas. O envio será ativado pela integração com a API.</p><Button className="bottom-action" onClick={() => { setAnswers([]); setNps(null); setComment(''); setStatement(''); setPhone(''); setName(''); setConsent(false); setWantsContact(null); setContactDraftSubmitted(false); setRatingIndex(0); go('access'); }}>Encerrar</Button>
-      </div>}
-    </section>
-    <p className="page-foot">VivaCare · Cuidar também é ouvir</p>
-  </main>;
+  return <PublicSurveyFlow onStaffLogin={() => setStaffView('login')} />;
 }
-
-function BackButton({ onClick }: { onClick: () => void }) {
-  return <button className="flow-back" type="button" onClick={onClick}>← Voltar</button>;
-}
-
 function ManagementLogin({ onBack, onPreview }: { onBack: () => void; onPreview: () => void }) {
   const [authScreen, setAuthScreen] = useState<'login' | 'forgot' | 'new-password'>('login');
   const [message, setMessage] = useState('');

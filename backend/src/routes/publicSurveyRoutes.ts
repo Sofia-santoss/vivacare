@@ -1,6 +1,7 @@
 import { createHash, createHmac } from 'node:crypto';
 import { Router } from 'express';
 import { pool } from '../db/pool.js';
+import { enforcePublicIpLimit, PublicRateLimitError } from '../security/publicRateLimit.js';
 
 const codigoUuid = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 
@@ -174,29 +175,6 @@ function valorColunas(pergunta: PerguntaRespostaRow, valor: string | number | bo
   throw new ErroSubmissao(400, 'INVALID_ANSWER_VALUE', 'Uma resposta nao corresponde ao tipo da pergunta.');
 }
 
-async function limitarPorIp(ip: string, limite: number, janela: number, segredo: string) {
-  const chave = createHmac('sha256', segredo).update('vivacare:public-survey-ip:v1\0').update(ip).digest('hex');
-  const resultado = await pool.query<{ solicitacoes: number }>(
-    `INSERT INTO public.submissoes_publicas_limites_ip
-       (chave_hash, solicitacoes, janela_iniciada_em, atualizado_em)
-     VALUES ($1, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-     ON CONFLICT (chave_hash) DO UPDATE SET
-       solicitacoes = CASE
-         WHEN public.submissoes_publicas_limites_ip.janela_iniciada_em <= CURRENT_TIMESTAMP - ($2 * INTERVAL '1 second') THEN 1
-         ELSE public.submissoes_publicas_limites_ip.solicitacoes + 1
-       END,
-       janela_iniciada_em = CASE
-         WHEN public.submissoes_publicas_limites_ip.janela_iniciada_em <= CURRENT_TIMESTAMP - ($2 * INTERVAL '1 second') THEN CURRENT_TIMESTAMP
-         ELSE public.submissoes_publicas_limites_ip.janela_iniciada_em
-       END,
-       atualizado_em = CURRENT_TIMESTAMP
-     RETURNING solicitacoes`,
-    [chave, janela],
-  );
-  if (resultado.rows[0]!.solicitacoes > limite) {
-    throw new ErroSubmissao(429, 'RATE_LIMITED', 'Muitas tentativas. Aguarde antes de tentar novamente.');
-  }
-}
 
 publicSurveyRouter.post('/pesquisas/:codigo/respostas', async (req, res) => {
   const { codigo } = req.params;
@@ -217,12 +195,10 @@ publicSurveyRouter.post('/pesquisas/:codigo/respostas', async (req, res) => {
     return res.status(400).json({ code: 'INVALID_SUBMISSION', message: 'O formato da resposta e invalido.' });
   }
 
-  const client = await pool.connect();
+  const client = await pool.connect().catch(() => null);
+  if (!client) return res.status(503).json({ code: 'PUBLIC_SUBMISSION_UNAVAILABLE', message: 'Nao foi possivel registrar sua resposta agora. Tente novamente.' });
   try {
     const segredoFingerprint = segredoObrigatorio('PUBLIC_SURVEY_FINGERPRINT_SECRET');
-    const segredoIp = segredoObrigatorio('AUTH_LOGIN_THROTTLE_SECRET');
-    const limiteIp = inteiroPositivo('PUBLIC_SURVEY_IP_LIMIT');
-    const janelaIp = inteiroPositivo('PUBLIC_SURVEY_IP_WINDOW_SECONDS');
     if (!req.ip) throw new Error('Endereco de rede indisponivel');
 
     const chaveHash = createHash('sha256').update(chaveCliente.toLowerCase()).digest('hex');
@@ -273,7 +249,7 @@ publicSurveyRouter.post('/pesquisas/:codigo/respostas', async (req, res) => {
       throw new ErroSubmissao(400, 'REQUIRED_QUESTION_MISSING', 'Responda todas as perguntas obrigatorias.');
     }
 
-    await limitarPorIp(req.ip, limiteIp, janelaIp, segredoIp);
+    await enforcePublicIpLimit(req.ip);
     const turnoResult = await client.query<{ id: string }>(
       `SELECT id::text AS id FROM public.turnos WHERE ativo=true AND (
          (hora_inicio < hora_fim AND LOCALTIME >= hora_inicio AND LOCALTIME < hora_fim)
@@ -310,6 +286,7 @@ publicSurveyRouter.post('/pesquisas/:codigo/respostas', async (req, res) => {
   } catch (erro) {
     await client.query('ROLLBACK').catch(() => undefined);
     if (erro instanceof ErroSubmissao) return res.status(erro.status).json({ code: erro.code, message: erro.message });
+    if (erro instanceof PublicRateLimitError) return res.status(erro.status).json({ code: erro.code, message: erro.message });
     console.error('Falha ao registrar resposta publica anonima.');
     return res.status(503).json({ code: 'PUBLIC_SUBMISSION_UNAVAILABLE', message: 'Nao foi possivel registrar sua resposta agora. Tente novamente.' });
   } finally {

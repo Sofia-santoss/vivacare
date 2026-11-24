@@ -1,31 +1,32 @@
-# Registro de tarefas — VivaCare
+# Registro de tarefas - VivaCare
 
-Responsáveis: **Pessoa A** = Raissa (backend e banco) · **Pessoa B** = Sofia (frontend e documentação).
+Responsaveis: **Pessoa A** = Raissa (backend e banco) · **Pessoa B** = Sofia (frontend e documentacao).
 
-## Concluídas
+## Concluidas
 
-| ID | Tarefa | Responsável | Commit |
-|---|---|---|---|
-| T0.1 | Verificar Node, npm e Git (Raissa) | A | — |
-| T0.3 | Criar a pasta `C:\dev\vivacare` fora do OneDrive | A | — |
-| T0.6 | Clonar o repositório | A | — |
-| T0.8 | Adicionar `.gitignore` | A | `1389fd5` |
-| T0.9 | Adicionar README inicial | A | `9221e85` |
-| T0.10 | Clonar o repositório e verificar ferramentas (Sofia) | B | — |
+| Tarefa | Estado |
+|---|---|
+| Criacao do repositorio, clone, `.gitignore` e README inicial | Concluida |
+| Estrutura `frontend`, `backend`, `database` e `docs` | Criada |
+| Health check do backend | Implementado em `GET /health`; depende de acesso ao PostgreSQL |
+| Validacoes de formulario e acessibilidade basica do fluxo do paciente | Implementadas |
+| Contratos e cliente HTTP do frontend para pesquisas e Ouvidoria | Implementados |
+| Rotas publicas de leitura, resposta anonima e Ouvidoria | Implementadas e com typecheck; aguardam schema e configuracao do banco |
 
 ## Em andamento
 
-| ID | Tarefa | Responsável |
+| Tarefa | Responsavel | Observacao |
 |---|---|---|
-| T0.11 | Primeira branch e registro de tarefas | B |
+| Validar e promover a proposta de banco 007 | Pessoa A | Depende do inventario real das perguntas `NOTA`, das faixas aprovadas e da configuracao do rate limit |
+| Ativar e validar o fluxo ponta a ponta com PostgreSQL | A + B | Fazer em banco descartavel/local depois da migration |
 
 ## Pendentes
 
-- Estrutura de pastas do projeto (`frontend`, `backend`, `database`, `docs`, `tests`)
-- Auditoria do esquema real do PostgreSQL
-- Decisão sobre a regra de cálculo do turno
-- Conexão do backend com o banco e endpoint `GET /health`
+- Confirmar como cadastrar e enviar as opcoes de perguntas `OPCAO`; o schema atual nao publica uma lista de opcoes.
+- Conectar autenticacao e painel de gestao aos endpoints protegidos; hoje o painel continua sendo uma previa local.
+- Revisar os fluxos e o desenho final com as referencias visuais acordadas.
+- Documentar instalacao e execucao local completa depois que a configuracao do banco estiver disponivel.
 
-## Bloqueadas
+## Dependencias de banco
 
-Nenhuma até o momento.
+A proposta `database/proposals/007_escalas_pesquisas.up.sql` ainda nao faz parte de `database/migrations` e nao deve ser aplicada ate a revisao documentada em `docs/API_PUBLICA_PENDENCIAS.md`. As respostas publicas e a Ouvidoria usam o rate limit persistente definido nessa proposta. Nenhum banco foi acessado ou alterado por estas tarefas.
