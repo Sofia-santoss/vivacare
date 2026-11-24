@@ -4,7 +4,7 @@ Sistema de pesquisa de experiência do paciente e acompanhamento de indicadores 
 
 Hospital de referência: Fundação Hospitalar Dr. Oswaldo Diesel.
 
-> Projeto acadêmico em desenvolvimento. Ainda não está pronto para produção.
+> Projeto acadêmico em desenvolvimento; ainda não está pronto para produção.
 
 ## Objetivo
 
@@ -12,46 +12,44 @@ Digitalizar pesquisas de satisfação de pacientes e apoiar a análise de indica
 
 ## Funcionalidades atuais
 
-- Pesquisa do paciente carregada pela API a partir de um código público.
-- Perguntas por etapa, com respostas de nota, texto, opção e sim/não.
-- Envio do NPS e das respostas da pesquisa como submissão anônima, com chave de idempotência.
-- Solicitação de Ouvidoria em uma chamada separada, com tipo, relato, telefone, consentimento e protocolo.
-- Validações de formulário, suporte básico a teclado e estados de carregamento e erro.
-- Interface de gestão disponível como prévia local; login, dashboard e seus dados ainda não estão conectados à API.
+- Pesquisa pública carregada pela API por código de setor ou UUID.
+- Perguntas por etapa e respostas de nota, texto, opção e sim/não.
+- Envio anônimo de NPS e respostas com chave de idempotência.
+- Fluxo separado de Ouvidoria com tipo, relato, telefone, consentimento e protocolo.
+- Login da equipe conectado à API, com sessão, proteção CSRF e primeiro acesso por convite.
+- Painel conectado às listagens protegidas de setores, equipes, turnos, escalas e usuários.
+- Métricas, administração de manifestações e alguns fluxos de criação/edição ainda estão em desenvolvimento.
 
-## Tecnologias
+## Tecnologias e estrutura
 
-- Frontend: React, TypeScript, Vite e Tailwind CSS
-- Backend: Node.js, TypeScript, Express e PostgreSQL
-- API: rotas REST sob `/api`
-
-## Estrutura
+- Frontend: React, TypeScript, Vite e Tailwind CSS.
+- Backend: Node.js, TypeScript, Express e PostgreSQL.
+- API REST com autenticação por sessão e autorização no servidor.
 
 ```text
 vivacare/
-├── frontend/               # Pesquisa do paciente e prévia do painel
-│   └── src/
-│       ├── api/            # Cliente HTTP e contratos
-│       ├── components/     # Fluxo público da pesquisa
-│       └── domain/         # Validações e tipos de validação
-├── backend/                # API Express
-│   └── src/
-│       ├── routes/         # Pesquisa pública e Ouvidoria
-│       ├── security/       # Limite público por IP
-│       ├── config/         # Configuração do ambiente
-│       └── db/             # Pool PostgreSQL e migrations
-├── database/
-│   ├── baseline/           # Snapshot do schema
-│   ├── migrations/         # Migrations reconhecidas pelo runner
-│   └── proposals/          # Propostas ainda não promovidas
-└── docs/                   # Privacidade, tarefas e pendências
+├── frontend/src/
+│   ├── api/                 # Cliente HTTP e contratos
+│   ├── components/          # Fluxo público da pesquisa
+│   └── domain/              # Validações e regras de formulário
+├── backend/src/
+│   ├── auth/                # Login, sessão, CSRF e autorização
+│   ├── pesquisas/           # Submissões públicas e limite por IP
+│   ├── setores/             # Rotas, serviços e repositórios
+│   ├── equipes/             # Gestão de equipes
+│   ├── turnos/              # Gestão de turnos
+│   ├── escalas/             # Gestão de escalas
+│   ├── usuarios/            # Usuários e convites
+│   └── db/                  # Pool PostgreSQL e migrations
+├── database/                # Baseline, migrations e propostas
+└── docs/                    # Requisitos, arquitetura, API e qualidade
 ```
 
 ## Executar localmente
 
-É necessário ter Node.js/npm e um PostgreSQL acessível com o schema e os dados da pesquisa preparados.
+É necessário ter Node.js/npm e um PostgreSQL acessível com schema e dados preparados. As instruções abaixo não criam nem migram o banco automaticamente.
 
-### 1. Configurar e iniciar o backend
+### Backend
 
 No PowerShell, a partir da raiz do repositório:
 
@@ -61,17 +59,17 @@ npm install
 Copy-Item .env.example .env
 ```
 
-Edite `backend/.env` e informe as credenciais do PostgreSQL em `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` e `DB_PASSWORD`. Depois inicie o servidor:
+Preencha `backend/.env` localmente com as configurações exigidas, incluindo `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` e os segredos de autenticação e pesquisa descritos em `backend/.env.example`. Não compartilhe nem versione esse arquivo. Inicie o servidor:
 
 ```powershell
 npm run dev
 ```
 
-O backend usa a porta `3000` por padrão. `FRONTEND_ORIGIN` define a origem permitida pelo CORS e, em desenvolvimento, usa `http://localhost:5173`.
+O backend usa a porta `3000` por padrão. Configure a origem do frontend em `FRONTEND_ORIGIN` ou `AUTH_ALLOWED_ORIGINS` conforme o exemplo de ambiente.
 
-### 2. Iniciar o frontend
+### Frontend
 
-Em outro terminal, na raiz do repositório:
+Em outro terminal, a partir da raiz:
 
 ```powershell
 cd frontend
@@ -79,52 +77,41 @@ npm install
 npm run dev
 ```
 
-Para abrir uma prévia sem PostgreSQL ou QR Code, acesse `http://localhost:5173/?preview=1`. Para uma pesquisa real, use a URL do setor, por exemplo `http://localhost:5173/pesquisa/recepcao`; o backend resolve o setor para a pesquisa ativa correspondente. A URL também pode usar `?codigo=UUID`. O frontend usa `http://localhost:3000/api` por padrão. Para mudar a URL da API, copie `frontend/.env.example` para `frontend/.env` e ajuste `VITE_API_BASE_URL`.
+Para abrir uma prévia sem banco ou QR Code, use `http://localhost:5173/?preview=1`. Uma pesquisa real pode ser acessada por URL do setor, por exemplo `http://localhost:5173/pesquisa/recepcao`, ou por `?codigo=UUID`. O frontend usa `http://localhost:3000/api` por padrão; para alterar, copie `frontend/.env.example` para `frontend/.env` e ajuste `VITE_API_BASE_URL`.
 
-Os arquivos `.env` contêm configurações locais e não devem ser enviados ao GitHub.
-
-## Rotas públicas
+## Rotas principais
 
 | Método e rota | Uso |
 |---|---|
-| `GET /health` | Verifica a conexão do backend com o PostgreSQL |
-| `GET /api/public/pesquisas/:codigo` | Carrega uma pesquisa ativa e suas perguntas |
+| `GET /health` | Verifica a disponibilidade do backend e PostgreSQL |
+| `GET /api/public/pesquisas/:codigo` | Carrega pesquisa ativa por slug ou UUID |
+| `POST /api/pesquisas/publicas/:codigo/respostas` | Envia NPS e respostas anônimas; exige `Idempotency-Key` UUIDv4 |
+| `POST /api/public/ouvidoria` | Envia manifestação separada com consentimento e chave de idempotência |
+| `POST /api/auth/login` | Inicia sessão da equipe |
+| `GET /api/auth/me` | Consulta a sessão atual |
+| `POST /api/auth/logout` | Encerra a sessão |
+| `POST /api/usuarios/convites/aceitar` | Define senha e ativa convite válido |
+| `/api/setores`, `/api/equipes`, `/api/turnos`, `/api/escalas`, `/api/usuarios` | Rotas de gestão protegidas por sessão; alterações exigem CSRF |
 
-No link do paciente, o segmento pode ser o slug do setor, como ecepcao ou enfermagem. A API tambem aceita o UUID publico; se houver mais de uma pesquisa ativa com o mesmo slug, responde 409 para evitar misturar perguntas.
-| `POST /api/public/pesquisas/:codigo/respostas` | Envia NPS e respostas anônimas; exige o header `Idempotency-Key` com UUIDv4 |
-| `POST /api/public/ouvidoria` | Envia uma manifestação identificável separada; exige consentimento e o mesmo header de idempotência |
-
-O corpo da pesquisa aceita somente `nps` e respostas identificadas por `questionId`; dados de contato não podem ser enviados nessa rota. A Ouvidoria não é vinculada à resposta da pesquisa.
-
-Exemplo de corpo para a pesquisa:
-
-```json
-{
-  "nps": 9,
-  "answers": [
-    { "questionId": "123", "value": 5 },
-    { "questionId": "124", "value": true }
-  ]
-}
-```
-
-Exemplo de corpo para a Ouvidoria:
-
-```json
-{
-  "type": "RECLAMACAO",
-  "name": "Nome opcional",
-  "phone": "(11) 98888-1234",
-  "statement": "Relato do paciente",
-  "consent": true
-}
-```
+O endpoint anônimo de pesquisa não aceita dados de contato. A Ouvidoria é um envio identificável separado e não é associada à resposta anônima. O limiar de NPS que apresenta a Ouvidoria deve seguir o roteiro aprovado pelo cliente.
 
 ## Estado do banco e limitações
 
-A proposta de migration 007 ainda está em `database/proposals` e não foi promovida para `database/migrations`. Ela inclui a estrutura de idempotência da pesquisa e o armazenamento do limite por IP, além de outras alterações de schema. Por isso, os envios públicos podem responder `503` até a revisão, validação num PostgreSQL descartável e configuração dos valores e segredos pendentes. Não aplique a proposta manualmente nem em um banco compartilhado; siga [`database/migrations/README.md`](database/migrations/README.md) e [`docs/API_PUBLICA_PENDENCIAS.md`](docs/API_PUBLICA_PENDENCIAS.md).
+A disponibilidade das rotas depende de schema, migrations e credenciais PostgreSQL preparados pela dupla responsável pelo banco. Confira [`database/migrations/README.md`](database/migrations/README.md) e [`docs/API_PUBLICA_PENDENCIAS.md`](docs/API_PUBLICA_PENDENCIAS.md); não aplique propostas diretamente em banco compartilhado.
 
-O schema atual não oferece uma lista de opções para perguntas do tipo `OPCAO`; por enquanto, o frontend envia esse valor como texto. A forma de cadastrar opções precisa ser definida antes de usar esse tipo em produção. A tela de gestão e a autenticação continuam como prévias, e os fluxos ainda precisam de validação ponta a ponta depois que o banco estiver preparado.
+O schema atual não oferece uma lista de opções para perguntas do tipo `OPCAO`; por enquanto, o frontend envia esse valor como texto. A forma de cadastrar opções precisa ser definida antes de usar esse tipo em produção. O envio de convites depende de configuração de entrega de e-mail. A integração ponta a ponta ainda requer validação com banco preparado e dados sintéticos.
+
+## Documentação e gestão do projeto
+
+- [Requisitos funcionais e não funcionais](docs/requisitos.md)
+- [Arquitetura do backend, segurança e escalabilidade](docs/arquitetura-backend.md)
+- [Padrões de branches, commits e revisão](docs/padroes-git.md)
+- [Plano e relatório de testes](docs/plano-e-relatorio-de-testes.md)
+- [Kanban: fluxo e tarefas iniciais](docs/KANBAN.md)
+- [Especificação OpenAPI](docs/openapi.yaml)
+- [Privacidade das pesquisas](docs/PRIVACIDADE_PESQUISAS.md)
+
+A especificação OpenAPI está versionada no repositório. A interface Swagger online e um quadro Kanban compartilhado ainda dependem da ativação/configuração dos serviços correspondentes; não existe URL pública ativa para informar neste momento.
 
 ## Verificações de código
 
@@ -134,6 +121,8 @@ A partir da raiz:
 npm --prefix frontend run build
 npm --prefix backend run typecheck
 ```
+
+Consulte o [plano e relatório de testes](docs/plano-e-relatorio-de-testes.md) para níveis, casos de aceite e o estado de execução/cobertura.
 
 ## Equipe
 
