@@ -24,7 +24,7 @@ const OTHER_HARNESS_DATABASE_VARIABLES = [
 ];
 
 // Numeric loopback literals avoid DNS/hosts-file aliases resolving outside the machine.
-const LOOPBACK_HOSTS = new Set(['127.0.0.1', '::1']);
+const LOOPBACK_HOSTS = new Set(['127.0.0.1']);
 const ENVIRONMENT_NAME_TOKEN = /(?:^|_)(?:prod(?:uction)?|producao|stage|staging|homolog(?:acao)?|hml|dev(?:elopment)?|desenvolvimento)(?:_|$)/i;
 
 export function validateSurveysTestDbEnvironment(env) {
@@ -44,8 +44,8 @@ export function validateSurveysTestDbEnvironment(env) {
   const database = typeof env.VIVACARE_SURVEYS_TEST_DB_NAME === 'string'
     ? env.VIVACARE_SURVEYS_TEST_DB_NAME.trim()
     : '';
-  if (database && !/^[a-z0-9][a-z0-9_]*_surveys_test$/i.test(database)) {
-    errors.push('nome do banco deve conter somente letras, números e _ e terminar em _surveys_test');
+  if (database && database !== 'vivacare_surveys_test') {
+    errors.push('o banco descartável permitido é exatamente vivacare_surveys_test');
   }
   if (database.length > 63) errors.push('nome do banco excede o limite de 63 caracteres do PostgreSQL');
   if (database && ENVIRONMENT_NAME_TOKEN.test(database)) {
@@ -72,7 +72,11 @@ export function validateSurveysTestDbEnvironment(env) {
   if (identities.length === 3 && new Set(identities.map((value) => value.trim().toLowerCase())).size !== 3) {
     errors.push('usuários SETUP, APP e MAINT devem ser distintos');
   }
-  if (identities.some((value) => ['vivacare_app', 'vivacare_auth_maintenance'].includes(value.trim().toLowerCase()))) {
+  if (identities.some((value) => [
+    'vivacare_app',
+    'vivacare_surveys_test_app',
+    'vivacare_auth_maintenance',
+  ].includes(value.trim().toLowerCase()))) {
     errors.push('SETUP, APP e MAINT devem ser usuários de login distintos das roles de grupo');
   }
 

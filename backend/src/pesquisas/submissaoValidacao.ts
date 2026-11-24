@@ -11,7 +11,18 @@ export function validarChaveIdempotencia(value:unknown):string {
 }
 export function validarSubmissao(body:unknown):SubmissaoPesquisaInput {
   if(!body||typeof body!=='object'||Array.isArray(body))throw new SubmissaoPesquisaError(400,'INVALID_SUBMISSION','Corpo inválido.');
-  const b=body as Record<string,unknown>;
+  const raw=body as Record<string,unknown>;
+  // Keep the established frontend wire contract while mapping it to the internal naming.
+  const usesPublicContract='nps' in raw || 'answers' in raw;
+  if(usesPublicContract&&Object.keys(raw).sort().join(',')!=='answers,nps')throw new SubmissaoPesquisaError(400,'ANONYMOUS_SURVEY_ONLY','Esta pesquisa recebe respostas anônimas e não aceita dados de identificação.');
+  const b:Record<string,unknown> = usesPublicContract
+    ? { notaNps: raw.nps, respostas: Array.isArray(raw.answers) ? raw.answers.map((answer) => {
+      if (!answer || typeof answer !== 'object' || Array.isArray(answer)) return answer;
+      const item=answer as Record<string,unknown>;
+      if(Object.keys(item).sort().join(',')!=='questionId,value')return item;
+      return { perguntaId:item.questionId, valor:item.value };
+    }) : raw.answers }
+    : raw;
   // This public survey endpoint deliberately accepts no contact or account identity fields.
   if(Object.keys(b).some(k=>!['notaNps','respostas'].includes(k)))throw new SubmissaoPesquisaError(400,'ANONYMOUS_SURVEY_ONLY','Esta pesquisa recebe respostas anônimas e não aceita dados de identificação.');
   if(!Number.isInteger(b.notaNps)||Number(b.notaNps)<0||Number(b.notaNps)>10)throw new SubmissaoPesquisaError(400,'INVALID_NPS','notaNps deve ser um inteiro entre 0 e 10.');

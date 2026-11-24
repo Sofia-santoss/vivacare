@@ -1,12 +1,12 @@
-﻿import {describe,expect,it} from 'vitest';
+import {describe,expect,it} from 'vitest';
 import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import type {Pool,PoolClient} from 'pg';
 import {SubmissaoPesquisaRepository} from './submissaoRepository.js';
 
 type Candidate={escala_id:string;equipe_id:string;hospital_id:string;setor_id:string;data:string;turno_id:string;status:'PLANEJADA'|'CONFIRMADA'|'CANCELADA'};
-type Question={id:string;tipo_resposta:'TEXTO'|'NOTA';obrigatoria:boolean;nota_minima:number|null;nota_maxima:number|null};
-const question:Question={id:'8',tipo_resposta:'TEXTO',obrigatoria:false,nota_minima:null,nota_maxima:null};
+type Question={id:string;tipo_resposta:'TEXTO'|'NOTA';obrigatoria:boolean;finalidade_nota:'NPS_GERAL'|'SATISFACAO_SETORIAL'|null;nota_minima:number|null;nota_maxima:number|null};
+const question:Question={id:'8',tipo_resposta:'TEXTO',obrigatoria:false,finalidade_nota:null,nota_minima:null,nota_maxima:null};
 const id='2fd921e4-8258-4ce0-a8d0-685d3915dc6c';
 const key=(n:number)=>`4a00000${n}-0000-4000-8000-000000000000`;
 function fakePool(now:Date,candidates:Candidate[]=[],turns=[{id:'3',nome:'Noite',hora_inicio:'22:00:00',hora_fim:'06:00:00',ativo:true}],questions:Question[]=[question],candidateError=false,associationError=false){
@@ -19,7 +19,10 @@ function fakePool(now:Date,candidates:Candidate[]=[],turns=[{id:'3',nome:'Noite'
   if(sql.includes('FROM public.pesquisas p JOIN public.setores'))return {rows:[{id:'4',setor_id:'2',hospital_id:'1',ativa:true}],rowCount:1};
   if(sql.includes('pg_advisory_xact_lock')){const lockKey=String(values[0]),previous=locks.get(lockKey)??Promise.resolve();let unlock!:()=>void;const current=new Promise<void>(resolve=>{unlock=resolve;});locks.set(lockKey,current);await previous;releaseLock=unlock;return {rows:[{}],rowCount:1};}
   if(sql.includes('FROM public.submissoes_pesquisa_idempotencia')){const k=`${values[0]}:${values[1]}`,row=keys.get(k);return {rows:row?[{resposta_id:row.id,payload_hash:row.payloadHash}]:[],rowCount:row?1:0};}
-  if(sql.includes('FROM public.perguntas'))return {rows:questions,rowCount:questions.length};
+  if(sql.includes('FROM public.perguntas')){
+   const eligible=sql.includes("finalidade_nota IS DISTINCT FROM 'NPS_GERAL'")?questions.filter(q=>q.finalidade_nota!=='NPS_GERAL'):questions;
+   return {rows:eligible,rowCount:eligible.length};
+  }
   if(sql.includes('SELECT CURRENT_TIMESTAMP'))return {rows:[{agora:now}],rowCount:1};
   if(sql.includes('FROM public.turnos WHERE ativo=true'))return {rows:turns,rowCount:turns.length};
   if(sql.includes('INSERT INTO public.respostas(')){responses.push(values);return {rows:[{id:String(nextResponse++)}],rowCount:1};}
@@ -88,10 +91,10 @@ describe('submissÃ£o e associaÃ§Ã£o (Pool mockado; nÃ£o valida concorrÃ
   expect(h.responses).toHaveLength(1);expect(h.associations[0]?.[6]).toBe('SEM_ESCALA');expect(h.calls.at(-1)?.sql).toBe('COMMIT');
  });
  it('exige texto obrigatÃ³rio nÃ£o vazio e respeita a escala configurada 1â€“5',async()=>{
-  const required:Question={id:'8',tipo_resposta:'TEXTO',obrigatoria:true,nota_minima:null,nota_maxima:null};
+  const required:Question={id:'8',tipo_resposta:'TEXTO',obrigatoria:true,finalidade_nota:null,nota_minima:null,nota_maxima:null};
   const h=fakePool(new Date('2026-11-13T02:30:00Z'),[],undefined,[required]);
   await expect(new SubmissaoPesquisaRepository(h.pool,Buffer.alloc(32,1)).submeter(id,key(7),{notaNps:9,respostas:[{perguntaId:'8',valor:'  ' }]})).rejects.toMatchObject({code:'REQUIRED_ANSWER_EMPTY'});
-  const note:Question={id:'8',tipo_resposta:'NOTA',obrigatoria:true,nota_minima:1,nota_maxima:5};
+  const note:Question={id:'8',tipo_resposta:'NOTA',obrigatoria:true,finalidade_nota:'SATISFACAO_SETORIAL',nota_minima:1,nota_maxima:5};
   const h2=fakePool(new Date('2026-11-13T02:30:00Z'),[],undefined,[note]);
   await expect(new SubmissaoPesquisaRepository(h2.pool,Buffer.alloc(32,1)).submeter(id,key(8),{notaNps:10,respostas:[{perguntaId:'8',valor:0}]})).rejects.toMatchObject({code:'ANSWER_TYPE_MISMATCH'});
   const h3=fakePool(new Date('2026-11-13T02:30:00Z'),[],undefined,[note]);
@@ -99,6 +102,8 @@ describe('submissÃ£o e associaÃ§Ã£o (Pool mockado; nÃ£o valida concorrÃ
   expect(h3.responses).toHaveLength(1);
   const h4=fakePool(new Date('2026-11-13T02:30:00Z'),[],undefined,[{...note,nota_minima:null,nota_maxima:null}]);
   await expect(new SubmissaoPesquisaRepository(h4.pool,Buffer.alloc(32,1)).submeter(id,key(14),{notaNps:10,respostas:[{perguntaId:'8',valor:3}]})).rejects.toMatchObject({status:503,code:'QUESTION_SCALE_UNCONFIGURED'});
+  const h4Partial=fakePool(new Date('2026-11-13T02:30:00Z'),[],undefined,[{...note,nota_minima:null,nota_maxima:5}]);
+  await expect(new SubmissaoPesquisaRepository(h4Partial.pool,Buffer.alloc(32,1)).submeter(id,key(17),{notaNps:10,respostas:[{perguntaId:'8',valor:3}]})).rejects.toMatchObject({status:503,code:'QUESTION_SCALE_UNCONFIGURED'});
   const h5=fakePool(new Date('2026-11-13T02:30:00Z'),[],undefined,[note]);
   await expect(new SubmissaoPesquisaRepository(h5.pool,Buffer.alloc(32,1)).submeter(id,key(15),{notaNps:10,respostas:[{perguntaId:'8',valor:6}]})).rejects.toMatchObject({code:'ANSWER_TYPE_MISMATCH'});
  });
@@ -106,10 +111,19 @@ describe('submissÃ£o e associaÃ§Ã£o (Pool mockado; nÃ£o valida concorrÃ
   const h=fakePool(new Date('2026-11-13T02:30:00Z'));
   await new SubmissaoPesquisaRepository(h.pool,Buffer.alloc(32,1)).submeter(id,key(10),input);
   expect(h.responses[0]).toEqual(['4','3',10,new Date('2026-11-13T02:30:00Z')]);
-  expect(h.calls.find(c=>c.sql.includes('INSERT INTO public.respostas('))?.sql).toContain('true,false,NULL');
+  const insert=h.calls.find(c=>c.sql.includes('INSERT INTO public.respostas('))?.sql??'';
+  expect(insert).toContain('INSERT INTO public.respostas(pesquisa_id,turno_id,nota_nps,respondida_em)');
+  expect(insert).not.toMatch(/anonima|autoriza_contato|telefone_contato|nome_contato|email_contato/i);
+ });
+ it('mantém o NPS geral separado das perguntas NOTA setoriais',async()=>{
+  const general:Question={id:'7',tipo_resposta:'NOTA',obrigatoria:false,finalidade_nota:'NPS_GERAL',nota_minima:0,nota_maxima:10};
+  const h=fakePool(new Date('2026-11-13T02:30:00Z'),[],undefined,[question,general]);
+  await expect(new SubmissaoPesquisaRepository(h.pool,Buffer.alloc(32,1)).submeter(id,key(16),{notaNps:0,respostas:[{perguntaId:'7',valor:10}]})).rejects.toMatchObject({code:'INVALID_QUESTIONS'});
+  const questionQuery=h.calls.find(call=>call.sql.includes('FROM public.perguntas'))?.sql;
+  expect(questionQuery).toContain("finalidade_nota IS DISTINCT FROM 'NPS_GERAL'");
  });
  it('proposta exclui respostas sem associaÃ§Ã£o dos agregados de equipe e suprime grupos pequenos',()=>{
-  const proposal=readFileSync(resolve(process.cwd(),'../database/proposals/007_escalas_pesquisas.up.sql'),'utf8');
+  const proposal=readFileSync(resolve(process.cwd(),'../database/proposals/008_escalas_pesquisas.up.sql'),'utf8');
   expect(proposal).toMatch(/CREATE VIEW public\.vw_indicadores_nps_equipe_dia_turno[\s\S]*?WHERE re\.resultado='ASSOCIADA'/);
   expect(proposal.match(/HAVING count\(\*\)>=3/g)).toHaveLength(2);
   const general=proposal.slice(proposal.indexOf('CREATE OR REPLACE VIEW public.vw_indicadores_nps_setor_dia_turno'),proposal.indexOf('-- Team indicators'));
@@ -118,7 +132,7 @@ describe('submissÃ£o e associaÃ§Ã£o (Pool mockado; nÃ£o valida concorrÃ
   expect(team.slice(0,team.indexOf('FROM public.respostas_escalas'))).not.toMatch(/resposta_texto|respondida_em|resposta_id/);
  });
  it('proposta define constraints que impedem referências cruzadas entre pesquisa, resposta, escala e equipe',()=>{
-  const proposal=readFileSync(resolve(process.cwd(),'../database/proposals/007_escalas_pesquisas.up.sql'),'utf8');
+  const proposal=readFileSync(resolve(process.cwd(),'../database/proposals/008_escalas_pesquisas.up.sql'),'utf8');
   expect(proposal).toContain('FOREIGN KEY (pesquisa_id,resposta_id) REFERENCES public.respostas(pesquisa_id,id)');
   expect(proposal).toContain('escala_id bigint REFERENCES public.escalas_trabalho(id)');
   expect(proposal).toContain('equipe_id bigint REFERENCES public.equipes(id)');

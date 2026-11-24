@@ -10,9 +10,11 @@ import { fileURLToPath } from 'node:url';
 import { loginAttemptKey } from '../auth/loginAttempts.js';
 import { dataTrabalhoResposta } from '../escalas/associacaoRespostas.js';
 import { segundosDoDiaNoFuso } from '../turnos/calcularTurno.js';
-import { createPublicSubmissionRateLimit, reservePublicSubmissionRequest } from './publicSubmissionRateLimit.js';
+import { createPublicIpRateLimit, createPublicSubmissionRateLimit, reservePublicSubmissionRequest } from './publicSubmissionRateLimit.js';
 import { createSubmissaoPesquisaRouter } from './submissaoRoutes.js';
+import { createPublicOmbudsmanRouter } from '../routes/publicOmbudsmanRoutes.js';
 import { assertSurveysTestDbEnvironment, validateSurveysTestDbEnvironment } from '../../scripts/assert-surveys-test-db.mjs';
+import { surveysTestDbResetBlockers } from '../config/surveysTestDbResetGuard.js';
 
 const env = process.env;
 const configCheck = validateSurveysTestDbEnvironment(env);
@@ -38,9 +40,12 @@ const maintenance = configured ? new pg.Pool(connection(maintenanceUser, mainten
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const baselineFile = resolve(projectRoot, 'database/baseline/000_schema.sql');
 const migrationDirectory = resolve(projectRoot, 'database/migrations');
-const proposalFile = resolve(projectRoot, 'database/proposals/007_escalas_pesquisas.up.sql');
-const cleanupFile = resolve(projectRoot, 'database/proposals/007_escalas_pesquisas.limpeza.sql');
-const cleanupGrantFile = resolve(projectRoot, 'database/proposals/007_escalas_pesquisas.limpeza_grant.sql');
+const proposalFile = resolve(projectRoot, 'database/proposals/008_escalas_pesquisas.up.sql');
+const cleanupFile = resolve(projectRoot, 'database/proposals/008_escalas_pesquisas.limpeza.sql');
+const baselineDefaultPrivilegeStatements = [
+  'ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT SELECT,USAGE ON SEQUENCES TO vivacare_app;',
+  'ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT SELECT,INSERT,UPDATE ON TABLES TO vivacare_app;',
+];
 
 const fingerprintSecret = Buffer.alloc(32, 41); // Synthetic test key; never a deployment secret.
 const ipSecret = Buffer.alloc(32, 73); // Synthetic test key; never a deployment secret.
@@ -71,16 +76,17 @@ function assertPgDumpVersion(): void {
   }
 }
 
-async function assertConnectedTargetIsLocalAndEmpty(): Promise<void> {
+async function assertConnectedTargetIsLocalAndSafe(): Promise<void> {
   if (!setup) throw new Error('Configuração de setup ausente; banco não foi conectado.');
 
   const target = await setup.query<{ database: string; address: string | null; user: string }>(
     `SELECT current_database() AS database,
-            inet_server_addr()::text AS address,
+            host(inet_server_addr()) AS address,
             current_user AS user`,
   );
   const row = target.rows[0];
-  if (!row || row.database !== database || !['127.0.0.1', '::1'].includes(row.address ?? '') || row.user !== setupUser) {
+  if (!row || host !== '127.0.0.1' || database !== 'vivacare_surveys_test'
+      || row.database !== 'vivacare_surveys_test' || row.address !== '127.0.0.1' || row.user !== setupUser) {
     throw new Error('A conexão não corresponde ao banco/host local/usuário SETUP configurado; nenhuma preparação foi feita.');
   }
 
@@ -109,32 +115,45 @@ async function assertConnectedTargetIsLocalAndEmpty(): Promise<void> {
        (SELECT count(*) FROM pg_extension WHERE extname <> 'plpgsql')::text AS extra_extension_count`,
   );
   const counts = inventory.rows[0];
-  if (!counts || Object.values(counts).some((value) => value !== '0')) {
-    throw new Error('O banco dedicado não está vazio; nenhuma estrutura será substituída.');
+  if (!counts) throw new Error('Não foi possível verificar o inventário do banco local.');
+  if (counts.custom_schema_count !== '0' || counts.large_object_count !== '0' || counts.extra_extension_count !== '0') {
+    throw new Error('O banco descartável contém schemas, large objects ou extensões inesperados; nenhuma estrutura foi alterada.');
   }
 
   const roles = await setup.query<{
-    app_exists: boolean;
-    app_nologin: boolean;
+    test_app_exists: boolean;
+    test_app_nologin: boolean;
+    test_app_inherits_app: boolean;
+    setup_test_app_member: boolean;
+    app_test_app_member: boolean;
     maint_exists: boolean;
     maint_nologin: boolean;
-    app_member: boolean;
     maint_member: boolean;
+    maint_test_app_member: boolean;
+    maint_app_member: boolean;
+    app_maintenance_member: boolean;
   }>(
     `SELECT
-       EXISTS (SELECT 1 FROM pg_roles WHERE rolname='vivacare_app') AS app_exists,
-       COALESCE((SELECT NOT rolcanlogin FROM pg_roles WHERE rolname='vivacare_app'), false) AS app_nologin,
+       EXISTS (SELECT 1 FROM pg_roles WHERE rolname='vivacare_surveys_test_app') AS test_app_exists,
+       COALESCE((SELECT NOT rolcanlogin FROM pg_roles WHERE rolname='vivacare_surveys_test_app'), false) AS test_app_nologin,
+       pg_has_role('vivacare_surveys_test_app', 'vivacare_app', 'USAGE') AS test_app_inherits_app,
+       pg_has_role($1, 'vivacare_surveys_test_app', 'USAGE') AS setup_test_app_member,
+       pg_has_role($2, 'vivacare_surveys_test_app', 'USAGE') AS app_test_app_member,
        EXISTS (SELECT 1 FROM pg_roles WHERE rolname='vivacare_auth_maintenance') AS maint_exists,
        COALESCE((SELECT NOT rolcanlogin FROM pg_roles WHERE rolname='vivacare_auth_maintenance'), false) AS maint_nologin,
-       pg_has_role($1, 'vivacare_app', 'USAGE') AS app_member,
-       pg_has_role($2, 'vivacare_auth_maintenance', 'USAGE') AS maint_member`,
-    [appUser, maintenanceUser],
+       pg_has_role($3, 'vivacare_auth_maintenance', 'USAGE') AS maint_member,
+       pg_has_role($3, 'vivacare_surveys_test_app', 'USAGE') AS maint_test_app_member,
+       pg_has_role($3, 'vivacare_app', 'USAGE') AS maint_app_member,
+       pg_has_role($2, 'vivacare_auth_maintenance', 'USAGE') AS app_maintenance_member`,
+    [setupUser, appUser, maintenanceUser],
   );
   const roleState = roles.rows[0];
-  if (!roleState || !roleState.app_exists || !roleState.app_nologin
+  if (!roleState || !roleState.test_app_exists || !roleState.test_app_nologin
+      || !roleState.test_app_inherits_app || !roleState.setup_test_app_member || !roleState.app_test_app_member
       || !roleState.maint_exists || !roleState.maint_nologin
-      || !roleState.app_member || !roleState.maint_member) {
-    throw new Error('Roles NOLOGIN e memberships APP/MAINT devem estar provisionados previamente; nenhuma estrutura foi preparada.');
+      || !roleState.maint_member || roleState.maint_test_app_member || roleState.maint_app_member
+      || roleState.app_maintenance_member) {
+    throw new Error('Role de grupo de teste NOLOGIN e memberships SETUP/APP/MAINT devem estar provisionados previamente; nenhuma estrutura foi preparada.');
   }
 
   for (const [pool, expectedUser, roleName] of [
@@ -143,11 +162,11 @@ async function assertConnectedTargetIsLocalAndEmpty(): Promise<void> {
   ] as const) {
     if (!pool) throw new Error('Pool APP/MAINT ausente; nenhuma estrutura foi preparada.');
     const identity = await pool.query<{ database: string; address: string | null; user: string; member: boolean }>(
-      `SELECT current_database() AS database,inet_server_addr()::text AS address,current_user AS user,
+      `SELECT current_database() AS database,host(inet_server_addr()) AS address,current_user AS user,
               pg_has_role(current_user,$1,'USAGE') AS member`, [roleName],
     );
     const connected = identity.rows[0];
-    if (!connected || connected.database !== database || !['127.0.0.1', '::1'].includes(connected.address ?? '')
+    if (!connected || connected.database !== 'vivacare_surveys_test' || connected.address !== '127.0.0.1'
         || connected.user !== expectedUser || !connected.member) {
       throw new Error(`Conexão ${roleName} não corresponde ao mesmo alvo local e membership esperado; nenhuma preparação foi feita.`);
     }
@@ -172,14 +191,171 @@ async function assertConnectedTargetIsLocalAndEmpty(): Promise<void> {
     || role.owns_database || role.owns_public_schema || role.can_create_public || role.can_create_temp)) {
     throw new Error('APP/MAINT precisam ser roles sem privilégios administrativos, ownership ou CREATE/TEMP; nenhuma estrutura foi preparada.');
   }
+
+  const resetSafety = await setup.query<{
+    owns_database: boolean; can_create_public_schema: boolean; public_objects_droppable_by_setup: boolean;
+    is_superuser: boolean; has_active_peer: boolean;
+  }>(
+    `SELECT
+       EXISTS (SELECT 1 FROM pg_database d WHERE d.datname=current_database() AND d.datdba=(SELECT oid FROM pg_roles WHERE rolname=current_user)) AS owns_database,
+       has_schema_privilege(current_user,'public','CREATE') AS can_create_public_schema,
+       NOT EXISTS (
+         SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+          WHERE n.nspname='public' AND c.relkind IN ('r','p','v','m','S','f')
+            AND NOT pg_has_role(current_user,c.relowner,'USAGE')
+         UNION ALL
+         SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+          WHERE n.nspname='public' AND NOT pg_has_role(current_user,p.proowner,'USAGE')
+         UNION ALL
+         SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid=t.typnamespace
+          WHERE n.nspname='public' AND NOT pg_has_role(current_user,t.typowner,'USAGE')
+       ) AS public_objects_droppable_by_setup,
+       (SELECT rolsuper FROM pg_roles WHERE rolname=current_user) AS is_superuser,
+       EXISTS (SELECT 1 FROM pg_stat_activity a WHERE a.datname=current_database()
+                AND a.usename=current_user AND a.pid<>pg_backend_pid()
+                AND (a.xact_start IS NOT NULL OR a.state='active')) AS has_active_peer`,
+  );
+  const reset = resetSafety.rows[0];
+  if (!reset) throw new Error('Não foi possível diagnosticar a autorização de reset; nenhuma alteração foi feita.');
+  for (const pool of [appPool, maintenance]) {
+    if (!pool) throw new Error('Pool APP/MAINT ausente; nenhuma estrutura foi preparada.');
+    const peer = await pool.query<{ busy: boolean }>(
+      `SELECT EXISTS (SELECT 1 FROM pg_stat_activity a WHERE a.datname=current_database()
+                       AND a.usename=current_user AND a.pid<>pg_backend_pid()
+                       AND (a.xact_start IS NOT NULL OR a.state='active')) AS busy`,
+    );
+    reset.has_active_peer ||= peer.rows[0]?.busy === true;
+  }
+  const resetBlockers = surveysTestDbResetBlockers(reset);
+  if (resetBlockers.length) {
+    throw new Error(`Reset bloqueado (${resetBlockers.join('; ')}); nenhuma alteração foi feita.`);
+  }
+}
+
+async function resetDisposablePublicSchema(): Promise<void> {
+  if (!setup) throw new Error('Pool SETUP ausente; reset não executado.');
+  const client = await setup.connect();
+  try {
+    await client.query('BEGIN');
+    const identity = await client.query<{ database: string; address: string | null; user: string }>(
+      `SELECT current_database() AS database,host(inet_server_addr()) AS address,current_user AS user`,
+    );
+    const row = identity.rows[0];
+    if (env.VIVACARE_SURVEYS_TEST_DB_DISPOSABLE !== 'YES'
+        || host !== '127.0.0.1' || database !== 'vivacare_surveys_test'
+        || !row || row.database !== 'vivacare_surveys_test' || row.address !== '127.0.0.1' || row.user !== setupUser) {
+      throw new Error('Reset bloqueado: alvo, confirmação descartável ou identidade SETUP divergente.');
+    }
+    const active = await client.query<{ busy: boolean }>(
+      `SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE datname=current_database()
+                       AND usename=current_user AND pid<>pg_backend_pid()
+                       AND (xact_start IS NOT NULL OR state='active')) AS busy`,
+    );
+    if (active.rows[0]?.busy) throw new Error('Reset bloqueado: existe sessão com transação/consulta ativa no banco descartável.');
+    await client.query("SET LOCAL lock_timeout = '5s'");
+    while (true) {
+      const relation = await client.query<{ name: string; kind: string }>(
+        `SELECT c.relname AS name,c.relkind AS kind
+           FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+          WHERE n.nspname='public' AND c.relkind IN ('r','p','v','m','S','f')
+          ORDER BY CASE c.relkind WHEN 'v' THEN 0 WHEN 'm' THEN 1 WHEN 'f' THEN 2
+                                  WHEN 'r' THEN 3 WHEN 'p' THEN 4 ELSE 5 END,c.relname
+          LIMIT 1`,
+      );
+      const object = relation.rows[0];
+      if (!object) break;
+      const kind = object.kind === 'v' ? 'VIEW'
+        : object.kind === 'm' ? 'MATERIALIZED VIEW'
+          : object.kind === 'f' ? 'FOREIGN TABLE'
+            : object.kind === 'S' ? 'SEQUENCE' : 'TABLE';
+      const identifier = `public."${object.name.replaceAll('"', '""')}"`;
+      await client.query(`DROP ${kind} IF EXISTS ${identifier} CASCADE`);
+    }
+    while (true) {
+      const routine = await client.query<{ name: string; kind: string; args: string }>(
+        `SELECT p.proname AS name,p.prokind AS kind,pg_get_function_identity_arguments(p.oid) AS args
+           FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+          WHERE n.nspname='public' ORDER BY p.proname,p.oid LIMIT 1`,
+      );
+      const object = routine.rows[0];
+      if (!object) break;
+      const kind = object.kind === 'p' ? 'PROCEDURE' : object.kind === 'a' ? 'AGGREGATE' : 'FUNCTION';
+      const identifier = `public."${object.name.replaceAll('"', '""')}"(${object.args})`;
+      await client.query(`DROP ${kind} IF EXISTS ${identifier} CASCADE`);
+    }
+    while (true) {
+      const type = await client.query<{ name: string }>(
+        `SELECT t.typname AS name FROM pg_type t JOIN pg_namespace n ON n.oid=t.typnamespace
+          WHERE n.nspname='public' AND t.typrelid=0 AND t.typelem=0 AND t.typtype IN ('b','c','d','e','r')
+          ORDER BY t.typname LIMIT 1`,
+      );
+      const object = type.rows[0];
+      if (!object) break;
+      const identifier = `public."${object.name.replaceAll('"', '""')}"`;
+      await client.query(`DROP TYPE IF EXISTS ${identifier} CASCADE`);
+    }
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function assertBaselineDefaultPrivileges(pool: pg.Pool): Promise<void> {
+  const result = await pool.query<{ sequence_defaults: boolean; table_defaults: boolean }>(
+    `SELECT
+       EXISTS (
+         SELECT 1
+           FROM pg_default_acl d
+           JOIN pg_roles owner_role ON owner_role.oid=d.defaclrole
+           JOIN pg_namespace target_schema ON target_schema.oid=d.defaclnamespace
+           CROSS JOIN LATERAL aclexplode(d.defaclacl) privilege
+           JOIN pg_roles grantee ON grantee.oid=privilege.grantee
+          WHERE owner_role.rolname='postgres' AND target_schema.nspname='public'
+            AND d.defaclobjtype='S' AND grantee.rolname='vivacare_app'
+          GROUP BY d.oid
+         HAVING array_agg(DISTINCT privilege.privilege_type) @> ARRAY['SELECT','USAGE']::text[]
+       ) AS sequence_defaults,
+       EXISTS (
+         SELECT 1
+           FROM pg_default_acl d
+           JOIN pg_roles owner_role ON owner_role.oid=d.defaclrole
+           JOIN pg_namespace target_schema ON target_schema.oid=d.defaclnamespace
+           CROSS JOIN LATERAL aclexplode(d.defaclacl) privilege
+           JOIN pg_roles grantee ON grantee.oid=privilege.grantee
+          WHERE owner_role.rolname='postgres' AND target_schema.nspname='public'
+            AND d.defaclobjtype='r' AND grantee.rolname='vivacare_app'
+          GROUP BY d.oid
+         HAVING array_agg(DISTINCT privilege.privilege_type) @> ARRAY['SELECT','INSERT','UPDATE']::text[]
+       ) AS table_defaults`,
+  );
+  if (!result.rows[0]?.sequence_defaults || !result.rows[0]?.table_defaults) {
+    throw new Error('Privilégios padrão do baseline para vivacare_app não estão provisionados no banco local; nenhuma estrutura foi preparada.');
+  }
+
+}
+
+function baselineSqlForSetup(baseline: string): string {
+  let result = baseline;
+  for (const statement of baselineDefaultPrivilegeStatements) {
+    const occurrences = result.split(statement).length - 1;
+    if (occurrences !== 1) {
+      throw new Error('Baseline não contém exatamente os comandos esperados de privilégios padrão; nenhuma estrutura foi preparada.');
+    }
+    result = result.replace(statement, '');
+  }
+  return result;
 }
 
 async function prepareOfficialChainAndProposal(): Promise<void> {
   if (!setup) throw new Error('Pool SETUP ausente.');
   const { applyPendingMigrations, recordBaseline } = await import('../db/migrator.js');
-  const baseline = (await readFile(baselineFile, 'utf8')).replace(/^\\(?:restrict|unrestrict)\s+.*$/gm, '');
+  const baseline = baselineSqlForSetup(
+    (await readFile(baselineFile, 'utf8')).replace(/^\\(?:restrict|unrestrict)\s+.*$/gm, ''),
+  );
 
-  // The checked-empty target is prepared once; no database/schema is created or dropped.
   await setup.query(baseline);
   await recordBaseline(setup, baselineFile);
   hospitalId = (await setup.query<{ id: string }>(
@@ -194,13 +370,38 @@ async function prepareOfficialChainAndProposal(): Promise<void> {
 
   await applyPendingMigrations(setup, migrationDirectory, baselineFile);
 
+  // Match the proposal's fail-closed production inventory in this disposable baseline.
+  const approvedNotes=[
+    {questionId:12,surveyId:1,order:1},{questionId:18,surveyId:2,order:1},{questionId:2,surveyId:3,order:1},
+    {questionId:4,surveyId:4,order:1},{questionId:10,surveyId:5,order:1},{questionId:16,surveyId:1,order:2},
+    {questionId:5,surveyId:2,order:2},{questionId:20,surveyId:3,order:2},{questionId:17,surveyId:4,order:2},
+    {questionId:14,surveyId:5,order:2},
+  ];
+  for(let surveyNumber=1;surveyNumber<=5;surveyNumber++){
+    const sector=(await setup.query<{id:string}>(
+      `INSERT INTO public.setores(hospital_id,nome) VALUES($1,$2) RETURNING id::text`,
+      [hospitalId,`Setor de inventario ${surveyNumber}`],
+    )).rows[0]!.id;
+    await setup.query(
+      `INSERT INTO public.pesquisas(id,setor_id,titulo) OVERRIDING SYSTEM VALUE VALUES($1,$2,$3)`,
+      [surveyNumber,sector,`Pesquisa de inventario ${surveyNumber}`],
+    );
+  }
+  for(const mapping of approvedNotes){
+    await setup.query(
+      `INSERT INTO public.perguntas(id,pesquisa_id,texto,etapa,tipo_resposta,ativa,ordem)
+       OVERRIDING SYSTEM VALUE VALUES($1,$2,$3,'GERAL','NOTA',true,$4)`,
+      [mapping.questionId,mapping.surveyId,`Nota de inventario ${mapping.questionId}`,mapping.order],
+    );
+  }
+  await setup.query(`SELECT setval(pg_get_serial_sequence('public.pesquisas','id'),(SELECT max(id) FROM public.pesquisas),true)`);
+  await setup.query(`SELECT setval(pg_get_serial_sequence('public.perguntas','id'),(SELECT max(id) FROM public.perguntas),true)`);
+
   const proposal = await readFile(proposalFile, 'utf8');
-  const cleanupGrant = await readFile(cleanupGrantFile, 'utf8');
   const client = await setup.connect();
   try {
     await client.query('BEGIN');
     await client.query(proposal);
-    await client.query(cleanupGrant);
     await client.query('COMMIT');
   } catch (error) {
     await client.query('ROLLBACK');
@@ -230,13 +431,13 @@ async function prepareOfficialChainAndProposal(): Promise<void> {
   surveyId = survey.rows[0]!.id;
   surveyCode = survey.rows[0]!.codigo_publico;
   noteQuestionId = (await setup.query<{ id: string }>(
-    `INSERT INTO public.perguntas(pesquisa_id,texto,etapa,tipo_resposta,obrigatoria,ordem)
-     VALUES ($1,'Nota sintética configurada','GERAL','NOTA',true,1) RETURNING id::text`,
+    `INSERT INTO public.perguntas(pesquisa_id,texto,etapa,tipo_resposta,obrigatoria,ordem,finalidade_nota)
+     VALUES ($1,'Nota sintética configurada','GERAL','NOTA',true,1,'SATISFACAO_SETORIAL') RETURNING id::text`,
     [surveyId],
   )).rows[0]!.id;
   unconfiguredNoteQuestionId = (await setup.query<{ id: string }>(
-    `INSERT INTO public.perguntas(pesquisa_id,texto,etapa,tipo_resposta,obrigatoria,ordem)
-     VALUES ($1,'Nota sintética sem faixa','GERAL','NOTA',false,2) RETURNING id::text`,
+    `INSERT INTO public.perguntas(pesquisa_id,texto,etapa,tipo_resposta,obrigatoria,ordem,finalidade_nota)
+     VALUES ($1,'Nota sintética sem faixa','GERAL','NOTA',false,2,'SATISFACAO_SETORIAL') RETURNING id::text`,
     [surveyId],
   )).rows[0]!.id;
   textQuestionId = (await setup.query<{ id: string }>(
@@ -247,8 +448,10 @@ async function prepareOfficialChainAndProposal(): Promise<void> {
   await setup.query(`UPDATE public.perguntas SET nota_minima=2,nota_maxima=4 WHERE id=$1`, [noteQuestionId]);
 
   const app = express();
+  app.use('/api/public/ouvidoria',createPublicIpRateLimit(appPool!,{maxRequests:10,windowSeconds:60},ipSecret,'public-ombudsman-ip'));
   app.use(express.json({ limit: '16kb', strict: true }));
-  app.use('/api/pesquisas/publicas', createSubmissaoPesquisaRouter(appPool!, fingerprintSecret));
+  app.use('/api/public',createPublicOmbudsmanRouter(appPool!));
+  app.use('/api/public/pesquisas', createSubmissaoPesquisaRouter(appPool!, fingerprintSecret));
   submissionApp = app;
 }
 
@@ -271,7 +474,9 @@ describe('submissão pública e proposta de pesquisas em PostgreSQL descartável
     assertSurveysTestDbEnvironment(env);
     if (!setup || !appPool || !maintenance) throw new Error('Pools SETUP/APP/MAINT ausentes; nenhuma conexão foi aberta.');
     assertPgDumpVersion();
-    await assertConnectedTargetIsLocalAndEmpty();
+    await assertConnectedTargetIsLocalAndSafe();
+    await assertBaselineDefaultPrivileges(setup);
+    await resetDisposablePublicSchema();
     await prepareOfficialChainAndProposal();
   }, 60_000);
 
@@ -289,10 +494,10 @@ describe('submissão pública e proposta de pesquisas em PostgreSQL descartável
     expect(columns.rows[0]).toEqual({ nota_minima: true, nota_maxima: true });
 
     for (const [minimum, maximum] of [[null, 4], [2, null], [0, 4], [2, 6], [3, 3], [4, 2]]) {
-      await expectSqlFailure(setup.query(
+      await expect(setup.query(
         `UPDATE public.perguntas SET nota_minima=$2,nota_maxima=$3 WHERE id=$1`,
         [noteQuestionId, minimum, maximum],
-      ));
+      )).rejects.toMatchObject({ code: '23514' });
     }
     await expectSqlFailure(setup.query(
       `INSERT INTO public.perguntas(pesquisa_id,texto,etapa,tipo_resposta,nota_minima,nota_maxima)
@@ -315,9 +520,30 @@ describe('submissão pública e proposta de pesquisas em PostgreSQL descartável
       [unconfiguredResponseId, unconfiguredNoteQuestionId],
     ));
 
+    const npsQuestionId = (await setup.query<{ id: string }>(
+      `INSERT INTO public.perguntas(pesquisa_id,texto,etapa,tipo_resposta,obrigatoria,ordem,finalidade_nota,nota_minima,nota_maxima)
+       VALUES ($1,'NPS geral sintético','GERAL','NOTA',false,4,'NPS_GERAL',0,10) RETURNING id::text`, [surveyId],
+    )).rows[0]!.id;
+    for (const [minimum, maximum] of [[null, 10], [0, null]]) {
+      await expect(setup.query(
+        `UPDATE public.perguntas SET nota_minima=$2,nota_maxima=$3 WHERE id=$1`,
+        [npsQuestionId, minimum, maximum],
+      )).rejects.toMatchObject({ code: '23514' });
+    }
+    const npsMinimumResponse = await insertResponse(0, null, '2026-11-20T14:03:00Z');
+    await setup.query(
+      `INSERT INTO public.resposta_detalhes(resposta_id,pergunta_id,resposta_nota) VALUES ($1,$2,0)`,
+      [npsMinimumResponse, npsQuestionId],
+    );
+    const npsOutOfRangeResponse = await insertResponse(10, null, '2026-11-20T14:04:00Z');
+    await expectSqlFailure(setup.query(
+      `INSERT INTO public.resposta_detalhes(resposta_id,pergunta_id,resposta_nota) VALUES ($1,$2,11)`,
+      [npsOutOfRangeResponse, npsQuestionId],
+    ));
+
     const unconfiguredKey = 'a1000003-0000-4000-8000-000000000003';
     const rejected = await request(submissionApp)
-      .post(`/api/pesquisas/publicas/${surveyCode}/respostas`)
+      .post(`/api/public/pesquisas/${surveyCode}/respostas`)
       .set('Idempotency-Key', unconfiguredKey)
       .send({ notaNps: 8, respostas: [
         { perguntaId: noteQuestionId, valor: 3 },
@@ -336,10 +562,10 @@ describe('submissão pública e proposta de pesquisas em PostgreSQL descartável
     if (!submissionApp || !setup) throw new Error('Aplicação de teste indisponível.');
     const key = 'a1000001-0000-4000-8000-000000000001';
     const response = await request(submissionApp)
-      .post(`/api/pesquisas/publicas/${surveyCode}/respostas`)
+      .post(`/api/public/pesquisas/${surveyCode}/respostas`)
       .set('Idempotency-Key', key)
       .send({ notaNps: 9, respostas: [{ perguntaId: noteQuestionId, valor: 3 }] });
-    expect(response.status).toBe(201);
+    expect(response.status, JSON.stringify(response.body)).toBe(201);
     expect(response.body).toEqual({ data: { recebida: true } });
     expect(response.body.data).not.toHaveProperty('respostaId');
 
@@ -358,17 +584,32 @@ describe('submissão pública e proposta de pesquisas em PostgreSQL descartável
       `SELECT resposta_nota FROM public.resposta_detalhes WHERE pergunta_id=$1`, [noteQuestionId],
     );
     expect(detail.rows.some((row) => row.resposta_nota === 3)).toBe(true);
+
+    const ombudsmanKey='a1000090-0000-4000-8000-000000000090';
+    const complaint={type:'RECLAMACAO',name:'Pessoa sintética',phone:'11987654321',statement:'Relato sintético; sem dados de paciente.',consent:true};
+    const ombudsmanFirst=await request(submissionApp).post('/api/public/ouvidoria').set('Idempotency-Key',ombudsmanKey).send(complaint);
+    const ombudsmanReplay=await request(submissionApp).post('/api/public/ouvidoria').set('Idempotency-Key',ombudsmanKey).send(complaint);
+    expect(ombudsmanFirst.status).toBe(201);
+    expect(ombudsmanReplay.status).toBe(200);
+    expect(ombudsmanReplay.body.protocol).toBe(ombudsmanFirst.body.protocol);
+    const manifestation=await setup.query<{resposta_id:string|null;anonima:boolean;relato:string}>(
+      `SELECT resposta_id::text,anonima,relato FROM public.manifestacoes WHERE protocolo=$1`,[ombudsmanFirst.body.protocol],
+    );
+    expect(manifestation.rows).toEqual([{resposta_id:null,anonima:false,relato:'Relato sintético; sem dados de paciente.'}]);
   });
 
   it('persiste idempotência e serializa submissões concorrentes com a mesma chave no PostgreSQL', async () => {
     if (!submissionApp || !setup) throw new Error('Aplicação de teste indisponível.');
     const key = 'a1000002-0000-4000-8000-000000000002';
     const send = () => request(submissionApp!)
-      .post(`/api/pesquisas/publicas/${surveyCode}/respostas`)
+      .post(`/api/public/pesquisas/${surveyCode}/respostas`)
       .set('Idempotency-Key', key)
       .send({ notaNps: 10, respostas: [{ perguntaId: noteQuestionId, valor: 4 }] });
     const responses = await Promise.all(Array.from({ length: 6 }, send));
-    expect(responses.map((response) => response.status).sort()).toEqual([200, 200, 200, 200, 200, 201]);
+    expect(
+      responses.map((response) => response.status).sort(),
+      JSON.stringify(responses.map((response) => ({ status: response.status, body: response.body })), null, 2),
+    ).toEqual([200, 200, 200, 200, 200, 201]);
     const persisted = await setup.query<{ count: string }>(
       `SELECT count(*)::text AS count FROM public.submissoes_pesquisa_idempotencia WHERE pesquisa_id=$1 AND chave_hash=$2`,
       [surveyId, sha256(key)],
@@ -376,7 +617,7 @@ describe('submissão pública e proposta de pesquisas em PostgreSQL descartável
     expect(persisted.rows[0]?.count).toBe('1');
 
     const changed = await request(submissionApp)
-      .post(`/api/pesquisas/publicas/${surveyCode}/respostas`)
+      .post(`/api/public/pesquisas/${surveyCode}/respostas`)
       .set('Idempotency-Key', key)
       .send({ notaNps: 1, respostas: [{ perguntaId: noteQuestionId, valor: 4 }] });
     expect(changed.status).toBe(409);
@@ -407,10 +648,10 @@ describe('submissão pública e proposta de pesquisas em PostgreSQL descartável
     try {
       const key = 'a1000004-0000-4000-8000-000000000004';
       const response = await request(submissionApp)
-        .post(`/api/pesquisas/publicas/${surveyCode}/respostas`)
+        .post(`/api/public/pesquisas/${surveyCode}/respostas`)
         .set('Idempotency-Key', key)
         .send({ notaNps: 9, respostas: [{ perguntaId: noteQuestionId, valor: 3 }] });
-      expect(response.status).toBe(201);
+      expect(response.status, JSON.stringify(response.body)).toBe(201);
       const saved = await setup.query<{
         escala_id: string; equipe_id: string; data_trabalho: string; resultado: string; turno_id: string;
       }>(
@@ -547,11 +788,11 @@ describe('submissão pública e proposta de pesquisas em PostgreSQL descartável
     const limiter = createPublicSubmissionRateLimit(appPool, { maxRequests: 2, windowSeconds: 600 }, ipSecret);
     const app = express();
     app.set('trust proxy', 'loopback');
-    app.post('/api/pesquisas/publicas/:code/respostas', limiter, (_req, res) => res.sendStatus(204));
+    app.post('/api/public/pesquisas/:code/respostas', limiter, (_req, res) => res.sendStatus(204));
     const headers = { 'X-Forwarded-For': '198.51.100.21' };
-    const first = await request(app).post('/api/pesquisas/publicas/code-one/respostas').set(headers);
-    const second = await request(app).post('/api/pesquisas/publicas/code-two/respostas').set(headers);
-    const third = await request(app).post('/api/pesquisas/publicas/code-three/respostas').set(headers);
+    const first = await request(app).post('/api/public/pesquisas/code-one/respostas').set(headers);
+    const second = await request(app).post('/api/public/pesquisas/code-two/respostas').set(headers);
+    const third = await request(app).post('/api/public/pesquisas/code-three/respostas').set(headers);
     expect([first.status, second.status, third.status]).toEqual([204, 204, 429]);
 
     const clientIp = '198.51.100.21';
@@ -632,7 +873,7 @@ describe('submissão pública e proposta de pesquisas em PostgreSQL descartável
               has_schema_privilege(r.rolname,'public','CREATE') AS can_create_public,
               has_database_privilege(r.rolname,current_database(),'TEMP') AS can_create_temp
          FROM pg_roles r WHERE r.rolname=ANY($1::text[]) ORDER BY r.rolname`,
-      [[appUser, maintenanceUser, 'vivacare_app', 'vivacare_auth_maintenance']],
+      [[appUser, maintenanceUser, 'vivacare_surveys_test_app', 'vivacare_auth_maintenance']],
     );
     expect(roleAttributes.rows).toHaveLength(4);
     for (const role of roleAttributes.rows) {

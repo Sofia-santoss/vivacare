@@ -25,15 +25,27 @@ export async function reservePublicSubmissionRequest(pool:Pool,keyHash:string,co
   }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
 }
 
-export function createPublicSubmissionRateLimit(pool:Pool,config:IpRateLimitConfig,secret:Buffer,reserve=reservePublicSubmissionRequest):RequestHandler{
+export function createPublicIpRateLimit(
+  pool:Pool,
+  config:IpRateLimitConfig,
+  secret:Buffer,
+  scope:'public-survey-ip'|'public-ombudsman-ip',
+  reserve=reservePublicSubmissionRequest,
+):RequestHandler{
   return async(req,res,next)=>{
     if(req.method!=='POST'||!config)return next();
     if(!req.ip)return res.status(503).json({error:'Submissão temporariamente indisponível.',code:'RATE_LIMIT_UNAVAILABLE'});
-    // The key is IP-scoped and domain-separated; it is independent of the public survey code and login counter.
-    const keyHash=loginAttemptKey(`public-survey-ip:${req.ip}`,secret);
+    // Each public service gets a stable, separate counter namespace; raw IP is never persisted.
+    const keyHash=loginAttemptKey(`${scope}:${req.ip}`,secret);
     try{
       if(!await reserve(pool,keyHash,config))return res.status(429).json({error:'Limite de submissões atingido. Tente novamente mais tarde.',code:'RATE_LIMITED'});
       return next();
     }catch{return res.status(503).json({error:'Submissão temporariamente indisponível.',code:'RATE_LIMIT_UNAVAILABLE'});}
   };
+}
+
+export function createPublicSubmissionRateLimit(
+  pool:Pool,config:IpRateLimitConfig,secret:Buffer,reserve=reservePublicSubmissionRequest,
+):RequestHandler{
+  return createPublicIpRateLimit(pool,config,secret,'public-survey-ip',reserve);
 }

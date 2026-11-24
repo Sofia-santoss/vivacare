@@ -17,7 +17,7 @@ Responsaveis: **Pessoa A** = Raissa (backend e banco) · **Pessoa B** = Sofia (f
 
 | Tarefa | Responsavel | Observacao |
 |---|---|---|
-| Validar e promover a proposta de banco 007 | Pessoa A | Depende do inventario real das perguntas `NOTA`, das faixas aprovadas e da configuracao do rate limit |
+| Validar e promover a proposta de banco 008 | Pessoa A | Depende da reconciliação do ledger, classificação das perguntas `NOTA` e contagem de manifestações legadas vinculadas |
 | Ativar e validar o fluxo ponta a ponta com PostgreSQL | A + B | Fazer em banco descartavel/local depois da migration |
 
 ## Pendentes
@@ -29,4 +29,4 @@ Responsaveis: **Pessoa A** = Raissa (backend e banco) · **Pessoa B** = Sofia (f
 
 ## Dependencias de banco
 
-A proposta `database/proposals/007_escalas_pesquisas.up.sql` ainda nao faz parte de `database/migrations` e nao deve ser aplicada ate a revisao documentada em `docs/API_PUBLICA_PENDENCIAS.md`. As respostas publicas e a Ouvidoria usam o rate limit persistente definido nessa proposta. Nenhum banco foi acessado ou alterado por estas tarefas.
+A proposta `database/proposals/008_escalas_pesquisas.up.sql` ainda nao faz parte de `database/migrations` e nao deve ser aplicada ate a revisao documentada em `docs/API_PUBLICA_PENDENCIAS.md`. Os limites aprovados para pesquisa e Ouvidoria são 60 requisições por IP a cada 60 segundos, com contadores independentes; a limpeza horária é executada pelo job separado com identidade MAINT.

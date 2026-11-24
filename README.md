@@ -59,7 +59,7 @@ npm install
 Copy-Item .env.example .env
 ```
 
-Preencha `backend/.env` localmente com as configurações exigidas, incluindo `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` e os segredos de autenticação e pesquisa descritos em `backend/.env.example`. Não compartilhe nem versione esse arquivo. Inicie o servidor:
+Preencha `backend/.env` localmente com `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` e os segredos descritos em `backend/.env.example`. Não compartilhe nem versione esse arquivo. Em desenvolvimento local, use `DB_SSL=false`; para conexões remotas, use `DB_SSL=true`, que valida certificado e hostname. Se a CA não estiver na trust store do Node, configure `DB_SSL_CA` com o caminho absoluto do certificado PEM do provedor; essa opção não desativa a validação. Em produção, `DB_SSL=true` e obrigatório. Inicie o servidor:
 
 ```powershell
 npm run dev
@@ -85,7 +85,7 @@ Para abrir uma prévia sem banco ou QR Code, use `http://localhost:5173/?preview
 |---|---|
 | `GET /health` | Verifica a disponibilidade do backend e PostgreSQL |
 | `GET /api/public/pesquisas/:codigo` | Carrega pesquisa ativa por slug ou UUID |
-| `POST /api/pesquisas/publicas/:codigo/respostas` | Envia NPS e respostas anônimas; exige `Idempotency-Key` UUIDv4 |
+| `POST /api/public/pesquisas/:codigo/respostas` | Envia NPS e respostas anônimas; exige `Idempotency-Key` UUIDv4 |
 | `POST /api/public/ouvidoria` | Envia manifestação separada com consentimento e chave de idempotência |
 | `POST /api/auth/login` | Inicia sessão da equipe |
 | `GET /api/auth/me` | Consulta a sessão atual |
@@ -97,7 +97,7 @@ O endpoint anônimo de pesquisa não aceita dados de contato. A Ouvidoria é um 
 
 ## Estado do banco e limitações
 
-A disponibilidade das rotas depende de schema, migrations e credenciais PostgreSQL preparados pela dupla responsável pelo banco. Confira [`database/migrations/README.md`](database/migrations/README.md) e [`docs/API_PUBLICA_PENDENCIAS.md`](docs/API_PUBLICA_PENDENCIAS.md); não aplique propostas diretamente em banco compartilhado.
+A disponibilidade das rotas depende de schema, migrations e credenciais PostgreSQL preparados pela dupla responsável pelo banco. A proposta de migration 008 permanece em `database/proposals` e não foi promovida para `database/migrations` nem aplicada. Confira [`database/migrations/README.md`](database/migrations/README.md), [`database/proposals/008_escalas_pesquisas.md`](database/proposals/008_escalas_pesquisas.md) e [`docs/API_PUBLICA_PENDENCIAS.md`](docs/API_PUBLICA_PENDENCIAS.md); não aplique propostas diretamente em banco compartilhado.
 
 O schema atual não oferece uma lista de opções para perguntas do tipo `OPCAO`; por enquanto, o frontend envia esse valor como texto. A forma de cadastrar opções precisa ser definida antes de usar esse tipo em produção. O envio de convites depende de configuração de entrega de e-mail. A integração ponta a ponta ainda requer validação com banco preparado e dados sintéticos.
 

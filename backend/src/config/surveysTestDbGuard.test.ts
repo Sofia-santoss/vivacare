@@ -44,12 +44,17 @@ describe('guard do banco descartável de pesquisas (validador puro, sem conexão
     expect(validateSurveysTestDbEnvironment(env).valid).toBe(false);
   });
 
+  it('exige o loopback IPv4 exato usado no reset descartável', () => {
+    const env = { ...validEnvironment(), VIVACARE_SURVEYS_TEST_DB_HOST: '::1' };
+    expect(validateSurveysTestDbEnvironment(env).valid).toBe(false);
+  });
+
   it('exige literal loopback numérico e recusa alias de host', () => {
     const env = { ...validEnvironment(), VIVACARE_SURVEYS_TEST_DB_HOST: 'localhost' };
     expect(validateSurveysTestDbEnvironment(env).valid).toBe(false);
   });
 
-  it.each(['vivacare_test', 'vivacare_prod_surveys_test', 'vivacare_homolog_surveys_test', 'vivacare_dev_surveys_test'])('recusa nome inválido ou com marcador de ambiente: %s', (database) => {
+  it.each(['vivacare_test', 'other_surveys_test', 'vivacare_prod_surveys_test', 'vivacare_homolog_surveys_test', 'vivacare_dev_surveys_test'])('recusa nome inválido ou diferente do banco descartável exato: %s', (database) => {
     const env = { ...validEnvironment(), VIVACARE_SURVEYS_TEST_DB_NAME: database };
     expect(validateSurveysTestDbEnvironment(env).valid).toBe(false);
   });
@@ -81,10 +86,13 @@ describe('guard do banco descartável de pesquisas (validador puro, sem conexão
     expect(validateSurveysTestDbEnvironment(env).errors).toContain('usuários SETUP, APP e MAINT devem ser distintos');
   });
 
-  it('recusa usar diretamente uma role de grupo como identidade de conexão', () => {
-    const env = { ...validEnvironment(), VIVACARE_SURVEYS_TEST_DB_APP_USER: 'vivacare_app' };
-    expect(validateSurveysTestDbEnvironment(env).errors).toContain('SETUP, APP e MAINT devem ser usuários de login distintos das roles de grupo');
-  });
+  it.each(['vivacare_app', 'vivacare_surveys_test_app', 'vivacare_auth_maintenance'])(
+    'recusa usar diretamente a role de grupo %s como identidade de conexão',
+    (groupRole) => {
+      const env = { ...validEnvironment(), VIVACARE_SURVEYS_TEST_DB_APP_USER: groupRole };
+      expect(validateSurveysTestDbEnvironment(env).errors).toContain('SETUP, APP e MAINT devem ser usuários de login distintos das roles de grupo');
+    },
+  );
 
   it('não usa DB_* nem VIVACARE_TEST_DB_* como fonte de configuração', () => {
     const env = {

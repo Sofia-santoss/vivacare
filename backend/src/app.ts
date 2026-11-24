@@ -1,9 +1,10 @@
 import express from 'express';
 import { pool } from './db/pool.js';
 import { publicSurveyRouter } from './routes/publicSurveyRoutes.js';
-import { publicOmbudsmanRouter } from './routes/publicOmbudsmanRoutes.js';
+import { createPublicOmbudsmanRouter } from './routes/publicOmbudsmanRoutes.js';
 import { parseHmacSecret, parseLoginThrottleSecret } from './auth/loginAttempts.js';
 import { parseIpRateLimitConfig } from './auth/ipRateLimit.js';
+import { parsePublicSubmissionRateLimit } from './pesquisas/publicSubmissionRateLimitConfig.js';
 import { isTrustedProxy, parseTrustedProxyIps } from './auth/trustedProxies.js';
 import { assertProductionIpLimit, assertProductionSubmissionIpLimit, parseNodeEnv } from './config/nodeEnv.js';
 import {
@@ -30,7 +31,7 @@ import { EscalasRepository } from './escalas/repository.js';
 import { EscalasService } from './escalas/service.js';
 import { createEscalasRouter } from './escalas/routes.js';
 import { createSubmissaoPesquisaRouter } from './pesquisas/submissaoRoutes.js';
-import { createPublicSubmissionRateLimit } from './pesquisas/publicSubmissionRateLimit.js';
+import { createPublicIpRateLimit, createPublicSubmissionRateLimit } from './pesquisas/publicSubmissionRateLimit.js';
 
 export const app = express();
 app.disable('x-powered-by');
@@ -49,12 +50,16 @@ const authOptions = {
   ipRateLimit: parseIpRateLimitConfig(process.env.AUTH_LOGIN_IP_LIMIT, process.env.AUTH_LOGIN_IP_WINDOW_SECONDS),
 };
 const publicSurveyFingerprintSecret=parseHmacSecret(process.env.PUBLIC_SURVEY_FINGERPRINT_SECRET,'PUBLIC_SURVEY_FINGERPRINT_SECRET');
-const publicSubmissionIpLimit=parseIpRateLimitConfig(process.env.PUBLIC_SURVEY_IP_LIMIT,process.env.PUBLIC_SURVEY_IP_WINDOW_SECONDS,{limit:'PUBLIC_SURVEY_IP_LIMIT',window:'PUBLIC_SURVEY_IP_WINDOW_SECONDS'});
+const publicSubmissionIpLimit=parsePublicSubmissionRateLimit(process.env.PUBLIC_SURVEY_IP_LIMIT,process.env.PUBLIC_SURVEY_IP_WINDOW_SECONDS);
 assertProductionSubmissionIpLimit(nodeEnv,publicSubmissionIpLimit!==null);
 // Limit before parsing JSON to throttle abusive bodies as well as valid submissions.
-app.use('/api/pesquisas/publicas/:codigo/respostas',createPublicSubmissionRateLimit(pool,publicSubmissionIpLimit,authOptions.loginThrottleSecret));
+app.use('/api/public/pesquisas/:codigo/respostas',createPublicSubmissionRateLimit(pool,publicSubmissionIpLimit,authOptions.loginThrottleSecret));
+app.use('/api/public/ouvidoria',createPublicIpRateLimit(pool,publicSubmissionIpLimit,authOptions.loginThrottleSecret,'public-ombudsman-ip'));
 app.use(express.json({ limit: '32kb', strict: true }));
-app.use('/api/public', publicSurveyRouter, publicOmbudsmanRouter);
+app.use('/api/public', publicSurveyRouter, createPublicOmbudsmanRouter(pool));
+// The same public URL used by the frontend is handled by the repository that persists
+// submissions even when no active shift/team association can be resolved.
+app.use('/api/public/pesquisas', createSubmissaoPesquisaRouter(pool,publicSurveyFingerprintSecret));
 const inviteUrlBase = process.env.USER_INVITE_URL_BASE
   ?? `${[...allowedOrigins][0] ?? 'http://localhost:5173'}/primeiro-acesso`;
 const parsedInviteUrl = new URL(inviteUrlBase);
@@ -66,8 +71,6 @@ const usuariosRepository = new UsuariosRepository(pool, inviteUrlBase, createInv
 app.use('/api/usuarios/convites', createAceitarConviteRouter(usuariosRepository, allowedOrigins));
 assertProductionIpLimit(nodeEnv, authOptions.ipRateLimit !== null);
 app.use('/api/auth', createAuthRouter(authOptions));
-// Public patient submissions use the unguessable survey code and a required idempotency key.
-app.use('/api/pesquisas/publicas', createSubmissaoPesquisaRouter(pool,publicSurveyFingerprintSecret));
 
 // Every business API route is mounted on this router, behind authentication and CSRF protection.
 export const protectedApi = express.Router();

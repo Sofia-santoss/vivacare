@@ -1,31 +1,19 @@
-# Handoff: API publica de pesquisas e Ouvidoria
+# Pendências da API pública
 
-## Implementado em codigo
+## Auditoria read-only do PostgreSQL hospedado
 
-- `GET /api/public/pesquisas/:codigo` devolve uma pesquisa ativa, o setor e as perguntas ativas. O segmento aceita slug do setor (ex.: `recepcao`) ou UUID publico; slug ambiguo retorna `409`.
-- `POST /api/public/pesquisas/:codigo/respostas` recebe somente NPS e respostas por ID de pergunta; rejeita campos extras de identidade e contato.
-- O POST da pesquisa exige `Idempotency-Key` UUIDv4, guarda hashes, grava a resposta como anonima e nao persiste o IP bruto.
-- `POST /api/public/ouvidoria` recebe um tipo de manifestacao, relato, telefone, consentimento explicito e nome opcional. E uma gravacao separada da resposta anonima, sem associacao por `resposta_id`.
-- A Ouvidoria devolve um protocolo estavel derivado do hash da chave UUIDv4; repetir a mesma chave e conteudo devolve o mesmo protocolo. Reutilizar a chave com outro conteudo retorna conflito.
-- O frontend chama esses endpoints pelo cliente em `frontend/src/api/client.ts`. `VITE_API_BASE_URL` configura a base da API.
+A última auditoria observou as tabelas centrais de pesquisas e Ouvidoria, 5 pesquisas ativas, 20 perguntas ativas, turnos configuráveis, nenhuma equipe/escala cadastrada e `respostas.turno_id NOT NULL`. Não existiam faixas de nota no schema, objetos de suporte a escalas/idempotência/rate limit previstos na proposta 008, nem `public.vivacare_schema_migrations`. A tabela `usuario_setores` não apresentava `DELETE` efetivo para a identidade examinada, apesar do `GRANT` definido na migration oficial 007. Esses dados são fotografia da auditoria, não substituem nova conferência operacional antes de uma mudança.
 
-## Pendencias para a dupla antes de ativar os POSTs
+## Pendências para testes reais
 
-1. **Conferir a cadeia e o banco alvo.** A documentacao de migrations informa que 001-006 estao preparadas, nao aplicadas. A proposta 007 tambem nao e descoberta pelo runner. Nao aplicar SQL manualmente em banco compartilhado.
-2. **Inventariar perguntas `NOTA` no PostgreSQL alvo** antes de promover 007. No schema atual:
+1. **Migration ledger/histórico:** reconciliar com DBA quais migrations foram aplicadas. O runner não deduz versões se o ledger está ausente e recusa `apply`; não registrar baseline sem validação formal.
+2. **Migration 007:** confirmar `current_user`, membership da role de aplicação, owner/ACL de `usuario_setores` e estado validado da migration. Se 007 estiver pendente no histórico reconciliado, aplicá-la pela cadeia oficial. Não editar 007 nem conceder `SUPERUSER`/privilégios amplos.
+3. **Perguntas NOTA:** NPS geral é campo separado 0–10; avaliação setorial é 1–5. A proposta 008 classifica os prompts canônicos observados e bloqueia perguntas não classificadas. Aprovar a finalidade/faixa de qualquer prompt divergente antes da promoção.
+4. **Turno/equipe:** a rota canônica salva a resposta sem turno/escala correspondente e registra a ausência de equipe. O schema atual com `turno_id NOT NULL` ainda não suporta esse fluxo; a alteração está apenas na proposta 008.
+5. **Rate limit:** configuracao aprovada: `PUBLIC_SURVEY_IP_LIMIT=60` e `PUBLIC_SURVEY_IP_WINDOW_SECONDS=60`. Pesquisa e Ouvidoria usam contadores HMAC independentes; codigos de pesquisa compartilham o bucket da familia de pesquisa. `AUTH_LOGIN_THROTTLE_SECRET` deve permanecer estavel entre instancias; `PUBLIC_SURVEY_FINGERPRINT_SECRET` e separado para idempotencia. Atras de proxy, `TRUSTED_PROXY_IPS` lista os IPs exatos confiaveis. A limpeza usa exclusivamente `DB_MAINT_USER` e `DB_MAINT_PASSWORD`, validados contra membership e privilegios MAINT.
 
-   ```sql
-   SELECT id, pesquisa_id, texto, obrigatoria, ativa
-   FROM public.perguntas
-   WHERE tipo_resposta = 'NOTA'
-   ORDER BY pesquisa_id, ordem, id;
-   ```
+**Agendamento da limpeza:** o projeto nao inclui configuracao de deploy, workflow ou scheduler; portanto, o cron nao pode ser instalado neste repositorio sem escolher o servico operacional. No scheduler do ambiente que executa o backend, configure `0 * * * *`, working directory `backend` e comando `npm run db:cleanup:public-limits`. O deploy precisa executar `npm run build` antes e disponibilizar `backend/dist/db/cleanupPublicSubmissionLimits.js`. Injete pelo secret manager somente as credenciais MAINT para o job. Variaveis: `NODE_ENV=production`, `DB_HOST`, `DB_NAME`, `DB_MAINT_USER`, `DB_MAINT_PASSWORD`, `DB_SSL=true` e `PUBLIC_SURVEY_IP_WINDOW_SECONDS=60`; `DB_PORT` e opcional (padrao 5432) e `DB_SSL_CA` e necessario quando a conexao exigir CA customizada. Nao configure `DB_USER` nem `DB_PASSWORD` neste job.
+6. **Ouvidoria independente:** a proposta 008 valida `manifestacoes.resposta_id IS NULL` e retira o índice legado. Se houver manifestação antiga ligada a resposta, a validação falha sem apagar dados e precisa de decisão antes de promover.
+7. **Proposta 008:** comparar novamente o inventário real, validar em PostgreSQL descartável, aprovar as decisões acima e só então promover como migration oficial imutável. A proposta não é carregada pelo runner.
 
-3. **Aprovar a faixa de cada pergunta `NOTA`.** A proposta 007 permite faixas de satisfacao de 1 a 5 e mantem o NPS geral em 0 a 10. Registrar a decisao por ID; nao inferir a faixa pelo texto.
-4. **Aprovar o rate limit:** definir `PUBLIC_SURVEY_IP_LIMIT` e `PUBLIC_SURVEY_IP_WINDOW_SECONDS`.
-5. **Provisionar os segredos:** `AUTH_LOGIN_THROTTLE_SECRET` e `PUBLIC_SURVEY_FINGERPRINT_SECRET`, aleatorios com pelo menos 32 bytes. Manter os mesmos valores em todas as instancias e o fingerprint estavel enquanto houver registros de idempotencia. Nao enviar valores reais ao Git.
-6. **Validar a proposta 007 num PostgreSQL descartavel.** A proposta inclui mais que idempotencia e rate limit (escalas, snapshots, views e grants). Revisar o escopo completo e validar constraints, grants e triggers antes de torna-la oficial.
-7. **Resolver as opcoes de perguntas `OPCAO`.** O schema atual nao possui tabela/campo que liste as opcoes. O frontend provisoriamente envia uma string; decidir se isso representa texto livre ou se as opcoes serao modeladas antes de usar esse tipo em producao.
-8. **Executar a validacao ponta a ponta** num banco local/descartavel depois da migration: leitura, envio, repeticao idempotente, limite por IP, gravacao da Ouvidoria e protocolo.
-
-O POST pode responder `503` enquanto faltarem as tabelas ou variaveis da 007. A submissao de pesquisa tambem depende de haver exatamente um turno ativo no horario atual no schema instalado. O runner segue `database/migrations/README.md` e recusa hosts remotos e producao.
+O frontend usa o POST público em `/api/public/pesquisas/:codigo/respostas`; a rota usa o repositório novo que aceita ausência de turno/equipe. Ouvidoria permanece em endpoint e tabelas próprios, sem vínculo com resposta anônima de pesquisa.

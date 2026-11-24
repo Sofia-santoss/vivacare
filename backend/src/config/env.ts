@@ -1,4 +1,5 @@
 import { parseNodeEnv } from './nodeEnv.js';
+import { parseDatabaseTlsConfig } from './databaseTls.js';
 
 function obrigatoria(nome: string): string {
   const valor = process.env[nome];
@@ -23,12 +24,13 @@ function numero(nome: string, padrao?: number): number {
 }
 
 const nodeEnv = process.env.NODE_ENV ?? 'development';
+const parsedNodeEnv = parseNodeEnv(process.env.NODE_ENV);
 const frontendOrigin = process.env.FRONTEND_ORIGIN?.trim() || (
   nodeEnv === 'production' ? obrigatoria('FRONTEND_ORIGIN').trim() : 'http://localhost:5173'
 );
 
 export const env = {
-  nodeEnv: parseNodeEnv(process.env.NODE_ENV),
+  nodeEnv: parsedNodeEnv,
   frontendOrigin,
   port: numero('PORT', 3000),
   db: {
@@ -37,5 +39,6 @@ export const env = {
     name: obrigatoria('DB_NAME'),
     user: obrigatoria('DB_USER'),
     password: obrigatoria('DB_PASSWORD'),
+    ssl: parseDatabaseTlsConfig(parsedNodeEnv, process.env.DB_SSL, process.env.DB_SSL_CA),
   },
 } as const;

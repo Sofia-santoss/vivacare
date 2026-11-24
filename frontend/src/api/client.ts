@@ -60,7 +60,10 @@ export function submitPublicSurvey(
   return request(`/public/pesquisas/${encodeURIComponent(code)}/respostas`, {
     method: 'POST',
     headers: { 'Idempotency-Key': idempotencyKey },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      notaNps: payload.nps,
+      respostas: payload.answers.map(({ questionId, value }) => ({ perguntaId: questionId, valor: value })),
+    }),
   });
 }
 

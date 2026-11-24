@@ -4,7 +4,7 @@ import { associarResposta, dataRespostaSaoPaulo, dataTrabalhoResposta } from '..
 import { calcularTurno, TurnoAmbiguoError, TurnoNaoEncontradoError, type Turno } from '../turnos/calcularTurno.js';
 import { SubmissaoPesquisaError, type SubmissaoPesquisaInput, type SubmissaoPesquisaResult, type ValorResposta } from './submissaoTypes.js';
 
-type Pergunta={id:string;tipo_resposta:'TEXTO'|'NOTA'|'OPCAO'|'SIM_NAO';obrigatoria:boolean;nota_minima:number|null;nota_maxima:number|null};
+type Pergunta={id:string;tipo_resposta:'TEXTO'|'NOTA'|'OPCAO'|'SIM_NAO';obrigatoria:boolean;finalidade_nota:'NPS_GERAL'|'SATISFACAO_SETORIAL'|null;nota_minima:number|null;nota_maxima:number|null};
 type TurnoRow={id:string;nome:string;hora_inicio:string;hora_fim:string;ativo:boolean};
 async function transaction<T>(pool:Pool,fn:(client:PoolClient)=>Promise<T>):Promise<T>{
   const client=await pool.connect();
@@ -48,7 +48,7 @@ export class SubmissaoPesquisaRepository{
       }
       if(!p.ativa)throw new SubmissaoPesquisaError(404,'SURVEY_NOT_FOUND','Pesquisa não encontrada ou inativa.');
 
-      const questions=await client.query<Pergunta>(`SELECT id::text,tipo_resposta,obrigatoria,nota_minima,nota_maxima FROM public.perguntas WHERE pesquisa_id=$1 AND ativa=true ORDER BY ordem,id`,[p.id]);
+      const questions=await client.query<Pergunta>(`SELECT id::text,tipo_resposta,obrigatoria,finalidade_nota,nota_minima,nota_maxima FROM public.perguntas WHERE pesquisa_id=$1 AND ativa=true AND finalidade_nota IS DISTINCT FROM 'NPS_GERAL' ORDER BY ordem,id`,[p.id]);
       const byId=new Map(questions.rows.map(q=>[q.id,q]));
       const answerIds=new Set(input.respostas.map(r=>r.perguntaId));
       if(input.respostas.some(r=>!byId.has(r.perguntaId))||questions.rows.some(q=>q.obrigatoria&&!answerIds.has(q.id)))throw new SubmissaoPesquisaError(400,'INVALID_QUESTIONS','Respostas devem corresponder às perguntas ativas e incluir as obrigatórias.');
@@ -64,7 +64,9 @@ export class SubmissaoPesquisaRepository{
       try{turno=calcularTurno(agora,turnos);}catch(error){if(error instanceof TurnoNaoEncontradoError||error instanceof TurnoAmbiguoError)turno=null;else throw error;}
 
       // The response row contains no respondent identity or contact data. Anonymity is explicit.
-      const inserted=await client.query<{id:string}>(`INSERT INTO public.respostas(pesquisa_id,turno_id,nota_nps,anonima,autoriza_contato,telefone_contato,respondida_em) VALUES($1,$2,$3,true,false,NULL,$4) RETURNING id::text`,[p.id,turno?String(turno.id):null,input.notaNps,agora]);
+      // The baseline defaults preserve anonymity; omitting contact columns lets APP lack
+      // INSERT privilege on identity and contact fields entirely.
+      const inserted=await client.query<{id:string}>(`INSERT INTO public.respostas(pesquisa_id,turno_id,nota_nps,respondida_em) VALUES($1,$2,$3,$4) RETURNING id::text`,[p.id,turno?String(turno.id):null,input.notaNps,agora]);
       const respostaId=inserted.rows[0]?.id;if(!respostaId)throw new Error('Resposta não foi persistida.');
       for(const answer of input.respostas){
         const question=byId.get(answer.perguntaId)!;const [texto,nota,opcao,simNao]=valorParaCampos(question,answer.valor);

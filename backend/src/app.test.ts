@@ -12,7 +12,13 @@ vi.hoisted(() => {
 
 // O pool de verdade nunca é usado nestes testes: ele é substituído por uma versão falsa.
 vi.mock('./db/pool.js', () => ({
-  pool: { query: vi.fn() },
+  pool: {
+    query: vi.fn(),
+    connect: vi.fn(async () => ({
+      query: vi.fn(async () => ({ rows: [] })),
+      release: vi.fn(),
+    })),
+  },
 }));
 
 import { app } from './app.js';
@@ -55,11 +61,13 @@ describe('GET /health', () => {
 });
 
 describe('submissão pública de pesquisas', () => {
-  it('é pública e exige chave idempotente antes de acessar o banco', async () => {
+  it('é pública e exige chave idempotente antes de acessar os dados da pesquisa', async () => {
     queryFalso.mockReset();
-    const resposta = await request(app).post('/api/pesquisas/publicas/2fd921e4-8258-4ce0-a8d0-685d3915dc6c/respostas').send({ notaNps: 8, respostas: [] });
+    const resposta = await request(app).post('/api/public/pesquisas/2fd921e4-8258-4ce0-a8d0-685d3915dc6c/respostas').send({ notaNps: 8, respostas: [] });
     expect(resposta.status).toBe(400);
     expect(resposta.body.code).toBe('IDEMPOTENCY_KEY_REQUIRED');
+    // O rate limit usa a conexão simulada acima; sem chave idempotente, o
+    // repositório da pesquisa não deve fazer consultas pelo pool.query.
     expect(queryFalso).not.toHaveBeenCalled();
   });
 });

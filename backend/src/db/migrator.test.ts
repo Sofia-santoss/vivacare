@@ -10,6 +10,8 @@ import {
   assertExpectedBaseline,
   assertSafeTarget,
   BASELINE_RELATIONS,
+  createBaselineDumpEnvironment,
+  describeBaselineDumpMismatch,
   discoverMigrations,
   validateAppliedLedger,
   withAdvisoryLock,
@@ -42,8 +44,112 @@ describe('proteções do runner versionado', () => {
   });
 
   it('bloqueia baseline cuja saída completa do pg_dump tenha qualquer divergência', () => {
-    expect(() => assertBaselineDumpMatches('CREATE TABLE x (id int);\r\n', 'CREATE TABLE x (id int);\n')).not.toThrow();
+    const sql = 'CREATE FUNCTION f() RETURNS void\nAS $$\nBEGIN\n  RETURN;\nEND;\n$$ LANGUAGE plpgsql;';
+    for (const lineEnding of ['\n', '\r\n', '\r\r\n']) {
+      expect(() => assertBaselineDumpMatches(sql.replaceAll('\n', lineEnding), sql)).not.toThrow();
+    }
     expect(() => assertBaselineDumpMatches('CREATE TABLE x (id int);', 'CREATE TABLE x (id bigint);')).toThrow(/diverge/i);
+    expect(() => assertBaselineDumpMatches(
+      sql.replace('RETURN;', 'RAISE EXCEPTION;'),
+      sql,
+    )).toThrow(/diverge/i);
+  });
+
+  it('isola pg_dump de overrides PG* herdados e conserva só a senha explícita do alvo', () => {
+    const env = createBaselineDumpEnvironment({
+      PATH: 'C:\\PostgreSQL\\bin',
+      PGHOST: 'remote.invalid',
+      PGHOSTADDR: '203.0.113.40',
+      PGPORT: '6432',
+      PGDATABASE: 'production',
+      PGUSER: 'unexpected-user',
+      PGSERVICE: 'external-service',
+      PGSERVICEFILE: 'C:\\temp\\service.conf',
+      PGOPTIONS: '-c role=postgres',
+      PGSSLMODE: 'verify-full',
+      PGPASSWORD: 'inherited-fake-password',
+      OTHER_SETTING: 'preserved',
+    }, 'target-fake-password');
+
+    expect(env).toEqual({
+      PATH: 'C:\\PostgreSQL\\bin',
+      PGPASSWORD: 'target-fake-password',
+      OTHER_SETTING: 'preserved',
+    });
+  });
+
+  it('diagnostica a primeira diferença após normalização e redige valores sensíveis', () => {
+    const diagnostic = describeBaselineDumpMismatch(
+      "CREATE TABLE x (id int);\n-- token = 'actual-secret-value'\n-- endpoint = 'https://actual.invalid/secret'\n",
+      "CREATE TABLE x (id int);\n-- token = 'expected-secret-value'\n-- endpoint = 'https://expected.invalid/secret'\n",
+    );
+
+    expect(diagnostic).toContain('Primeira diferença após normalização: linha 2.');
+    expect(diagnostic).toContain('BASELINE ESPERADO:');
+    expect(diagnostic).toContain('DUMP ATUAL:');
+    expect(diagnostic).not.toContain('actual-secret-value');
+    expect(diagnostic).not.toContain('expected-secret-value');
+    expect(diagnostic).not.toContain('https://');
+    expect(diagnostic).not.toContain('actual.invalid');
+    expect(diagnostic).not.toContain('expected.invalid');
+  });
+
+  it('mostra CR, LF, tabs e bytes de diferenças invisíveis sem normalizar o SQL', () => {
+    const baseline = 'CREATE FUNCTION f() RETURNS void\n    AS $$\r\n';
+    const dump = 'CREATE FUNCTION f() RETURNS void\n    AS $$\t\r\n';
+    const diagnostic = describeBaselineDumpMismatch(dump, baseline);
+
+    expect(() => assertBaselineDumpMatches(dump, baseline)).toThrow(/diverge/i);
+    expect(diagnostic).toContain('DUMP original JSON (com fim de linha): "    AS $$\\t\\r\\n"');
+    expect(diagnostic).toContain('U+0009 U+000D U+000A');
+    expect(diagnostic).toContain('20 20 20 20 41 53 20 24 24 09 0d 0a');
+  });
+
+  it('normaliza somente o CREATE SCHEMA public redundante, casts equivalentes em CHECKs conhecidas e linhas finais', () => {
+    const baseline = [
+      '-- Name: public; Type: SCHEMA; Schema: -; Owner: -',
+      '--',
+      '',
+      '--',
+      '-- Name: SCHEMA public; Type: COMMENT; Schema: -; Owner: -',
+      '--',
+      '',
+      "    CONSTRAINT ck_escala_status CHECK (((status)::text = ANY ((ARRAY['PLANEJADA'::character varying, 'CONFIRMADA'::character varying])::text[])))",
+      '',
+    ].join('\n');
+    const equivalentDump = [
+      '-- Name: public; Type: SCHEMA; Schema: -; Owner: -',
+      '--',
+      '',
+      'CREATE SCHEMA public;',
+      '',
+      '',
+      '--',
+      '-- Name: SCHEMA public; Type: COMMENT; Schema: -; Owner: -',
+      '--',
+      '',
+      "    CONSTRAINT ck_escala_status CHECK (((status)::text = ANY (ARRAY[('PLANEJADA'::character varying)::text, ('CONFIRMADA'::character varying)::text])))",
+      '',
+      '',
+    ].join('\n');
+
+    expect(() => assertBaselineDumpMatches(equivalentDump, baseline)).not.toThrow();
+    expect(() => assertBaselineDumpMatches(
+      equivalentDump.replace('CONFIRMADA', 'CANCELADA'),
+      baseline,
+    )).toThrow(/diverge/i);
+    expect(() => assertBaselineDumpMatches(
+      equivalentDump.replace('CREATE SCHEMA public;', 'CREATE SCHEMA extra;'),
+      baseline,
+    )).toThrow(/diverge/i);
+    expect(() => assertBaselineDumpMatches(
+      `${equivalentDump}\nCREATE INDEX extra_idx ON public.equipes (id);`,
+      baseline,
+    )).toThrow(/diverge/i);
+    expect(() => assertBaselineDumpMatches(
+      `${equivalentDump}\nGRANT DELETE ON TABLE public.equipes TO vivacare_app;`,
+      baseline,
+    )).toThrow(/diverge/i);
   });
 
   it('descobre apenas arquivos up e calcula checksum sobre os bytes do conteúdo', async () => {
@@ -60,8 +166,8 @@ describe('proteções do runner versionado', () => {
   it('discovers the official 007 and does not discover the separate unpromoted proposal', async () => {
     const migrations = await discoverMigrations(migrationDirectory);
     const proposals = await readdir(resolve(root, 'database/proposals'));
-    expect(proposals).toContain('007_escalas_pesquisas.up.sql');
-    expect(migrations.map((migration) => migration.file)).not.toContain('007_escalas_pesquisas.up.sql');
+    expect(proposals).toContain('008_escalas_pesquisas.up.sql');
+    expect(migrations.map((migration) => migration.file)).not.toContain('008_escalas_pesquisas.up.sql');
     expect(migrations.at(-1)?.version).toBe('007_privilegios_usuario_setores');
   });
 

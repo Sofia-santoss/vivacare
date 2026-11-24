@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto';
 import { Router } from 'express';
-import { pool } from '../db/pool.js';
-import { enforcePublicIpLimit, PublicRateLimitError } from '../security/publicRateLimit.js';
+import type { Pool } from 'pg';
 
 const uuidV4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const types = new Set(['ELOGIO', 'RECLAMACAO', 'SUGESTAO']);
@@ -56,9 +55,9 @@ function parseBody(value: unknown): OmbudsmanBody {
   };
 }
 
-export const publicOmbudsmanRouter = Router();
-
-publicOmbudsmanRouter.post('/ouvidoria', async (req, res) => {
+export function createPublicOmbudsmanRouter(pool: Pool): Router {
+  const router = Router();
+  router.post('/ouvidoria', async (req, res) => {
   let body: OmbudsmanBody;
   try {
     body = parseBody(req.body);
@@ -73,7 +72,6 @@ publicOmbudsmanRouter.post('/ouvidoria', async (req, res) => {
   if (!uuidV4.test(key)) {
     return res.status(400).json({ code: 'INVALID_IDEMPOTENCY_KEY', message: 'Envie uma chave UUIDv4 no cabecalho Idempotency-Key.' });
   }
-  if (!req.ip) return res.status(503).json({ code: 'PUBLIC_SUBMISSION_UNAVAILABLE', message: 'Nao foi possivel registrar sua solicitacao agora.' });
 
   const keyHash = createHash('sha256').update('vivacare:ombudsman-key:v1\0').update(key.toLowerCase()).digest('hex');
   const protocol = `VC-${keyHash.slice(0, 32).toUpperCase()}`;
@@ -102,7 +100,6 @@ publicOmbudsmanRouter.post('/ouvidoria', async (req, res) => {
       return res.status(200).json({ status: 'already_submitted', protocol });
     }
 
-    await enforcePublicIpLimit(req.ip);
     await client.query(
       `INSERT INTO public.manifestacoes
          (protocolo, tipo, anonima, nome_contato, telefone_contato, email_contato, autoriza_contato, relato)
@@ -116,12 +113,11 @@ publicOmbudsmanRouter.post('/ouvidoria', async (req, res) => {
     if (error instanceof InvalidOmbudsmanRequest) {
       return res.status(409).json({ code: error.code, message: error.message });
     }
-    if (error instanceof PublicRateLimitError) {
-      return res.status(error.status).json({ code: error.code, message: error.message });
-    }
     console.error('Falha ao registrar solicitacao publica da Ouvidoria.');
     return res.status(503).json({ code: 'PUBLIC_SUBMISSION_UNAVAILABLE', message: 'Nao foi possivel registrar sua solicitacao agora. Tente novamente.' });
   } finally {
     client.release();
   }
-});
+  });
+  return router;
+}

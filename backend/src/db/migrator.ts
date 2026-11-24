@@ -70,10 +70,158 @@ export function validateAppliedLedger(
   }
 }
 
+const NORMALIZABLE_CHECK_ARRAY_CASTS = new Set([
+  'ck_escala_status',
+  'ck_historico_status_anterior',
+  'ck_historico_status_novo',
+  'ck_manifestacao_encerramento',
+  'ck_manifestacao_status',
+  'ck_manifestacao_tipo',
+  'ck_pergunta_etapa',
+  'ck_pergunta_tipo',
+]);
+
+function normalizeCheckArrayCasts(line: string): string {
+  const constraint = line.match(/^\s*CONSTRAINT\s+([a-z0-9_]+)\s+CHECK\b/i)?.[1];
+  if (!constraint || !NORMALIZABLE_CHECK_ARRAY_CASTS.has(constraint.toLowerCase())) return line;
+
+  return line.replace(
+    /\(\(ARRAY\[((?:'(?:''|[^'])*'::character varying(?:,\s*)?)+)\]\)::text\[\]\)/g,
+    (expression, rawElements: string) => {
+      const elements = rawElements.split(/,\s*/);
+      if (!elements.every((element) => /^'(?:''|[^'])*'::character varying$/.test(element))) return expression;
+      return `(ARRAY[${elements.map((element) => `(${element})::text`).join(', ')}])`;
+    },
+  );
+}
+
+type NormalizedDump = { lines: string[]; sourceLineIndices: number[]; originalLines: string[] };
+
+function normalizeBaselineDumpLines(dump: string): NormalizedDump {
+  const originalLines = dump.split('\n');
+  // pg_dump/Windows output can contain duplicated CRs before LF. Collapse
+  // only the line-ending sequence; SQL content and structural tokens stay intact.
+  const lines = dump.replace(/\r*\n/g, '\n').split('\n');
+  const sourceLineIndices = lines.map((_, index) => index);
+  const schemaHeading = lines.findIndex((line) => line === '-- Name: public; Type: SCHEMA; Schema: -; Owner: -');
+  const schemaComment = lines.findIndex((line) => line === '-- Name: SCHEMA public; Type: COMMENT; Schema: -; Owner: -');
+  if (schemaHeading >= 0 && schemaComment > schemaHeading && lines[schemaComment - 1] === '--') {
+    const between = lines.slice(schemaHeading + 2, schemaComment - 1);
+    const createStatements = between.filter((line) => line === 'CREATE SCHEMA public;').length;
+    if (createStatements <= 1 && between.every((line) => line === '' || line === 'CREATE SCHEMA public;')) {
+      lines.splice(schemaHeading + 2, between.length, '');
+      sourceLineIndices.splice(schemaHeading + 2, between.length, sourceLineIndices[schemaHeading + 2] ?? schemaHeading + 2);
+    }
+  }
+
+  const normalizedLines = lines.map(normalizeCheckArrayCasts);
+  while (normalizedLines.at(-1) === '') {
+    normalizedLines.pop();
+    sourceLineIndices.pop();
+  }
+  return { lines: normalizedLines, sourceLineIndices, originalLines };
+}
+
+function normalizeBaselineDump(dump: string): string {
+  return `${normalizeBaselineDumpLines(dump).lines.join('\n')}\n`;
+}
+
+function redactDiagnosticLine(line: string): string {
+  let safeLine = line.replace(/(?:https?|postgres(?:ql)?:)\/\/[^\s'";)]+/gi, '[URL REDACTED]');
+  if (/\b(password|passwd|token|secret|api[_-]?key|authorization)\b/i.test(safeLine)) {
+    safeLine = safeLine.replace(/'(?:''|[^'])*'|"(?:""|[^"])*"/g, '[LITERAL REDACTED]');
+    safeLine = safeLine.replace(/\b(password|passwd|token|secret|api[_-]?key|authorization)\b\s*(?:=|:|=>)\s*[^\s,;)]+/gi, '$1=[REDACTED]');
+  }
+  return safeLine;
+}
+
+export function describeBaselineDumpMismatch(actual: string, expected: string): string {
+  const actualDump = normalizeBaselineDumpLines(actual);
+  const expectedDump = normalizeBaselineDumpLines(expected);
+  const actualLines = actualDump.lines;
+  const expectedLines = expectedDump.lines;
+  let firstDifference = 0;
+  while (firstDifference < actualLines.length && firstDifference < expectedLines.length
+      && actualLines[firstDifference] === expectedLines[firstDifference]) {
+    firstDifference++;
+  }
+
+  const excerpt = (label: string, lines: string[]) => {
+    const start = Math.max(0, firstDifference - 2);
+    const end = Math.min(lines.length, firstDifference + 4);
+    const content = lines.slice(start, end).map((line, offset) =>
+      `  ${start + offset + 1}: ${redactDiagnosticLine(line)}`,
+    );
+    return [`${label}:`, ...(content.length ? content : ['  <fim do arquivo>'])].join('\n');
+  };
+
+  const rawLineDetails = (label: string, dump: NormalizedDump, normalizedLineIndex: number) => {
+    const originalLineIndex = dump.sourceLineIndices[normalizedLineIndex];
+    if (originalLineIndex === undefined) return `${label} raw: <fim do arquivo>`;
+    let rawLine = dump.originalLines[originalLineIndex] ?? '';
+    if (originalLineIndex < dump.originalLines.length - 1) rawLine += '\n';
+    const safeRawLine = redactDiagnosticLine(rawLine);
+    const safeNormalizedLine = redactDiagnosticLine(dump.lines[normalizedLineIndex] ?? '');
+    const codepoints = Array.from(safeRawLine).map((character) =>
+      `U+${character.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0')}`,
+    ).join(' ');
+    const utf8 = Array.from(Buffer.from(safeRawLine, 'utf8'))
+      .map((byte) => byte.toString(16).padStart(2, '0'))
+      .join(' ');
+    return [
+      `${label} normalizado JSON: ${JSON.stringify(safeNormalizedLine)}`,
+      `${label} original JSON (com fim de linha): ${JSON.stringify(safeRawLine)}`,
+      `${label} codepoints: ${codepoints}`,
+      `${label} bytes UTF-8: ${utf8}`,
+    ].join('\n');
+  };
+
+  const actualCharacters = Array.from(redactDiagnosticLine(actualLines[firstDifference] ?? ''));
+  const expectedCharacters = Array.from(redactDiagnosticLine(expectedLines[firstDifference] ?? ''));
+  let firstCharacterDifference = 0;
+  while (firstCharacterDifference < actualCharacters.length
+      && firstCharacterDifference < expectedCharacters.length
+      && actualCharacters[firstCharacterDifference] === expectedCharacters[firstCharacterDifference]) {
+    firstCharacterDifference++;
+  }
+  const actualCharacter = actualCharacters[firstCharacterDifference];
+  const expectedCharacter = expectedCharacters[firstCharacterDifference];
+
+  return [
+    `Primeira diferença após normalização: linha ${firstDifference + 1}.`,
+    `Primeiro caractere divergente na linha: índice ${firstCharacterDifference} (zero-based), baseline=${JSON.stringify(expectedCharacter ?? '<EOF>')}, dump=${JSON.stringify(actualCharacter ?? '<EOF>')}.`,
+    excerpt('BASELINE ESPERADO', expectedLines),
+    excerpt('DUMP ATUAL', actualLines),
+    rawLineDetails('BASELINE', expectedDump, firstDifference),
+    rawLineDetails('DUMP', actualDump, firstDifference),
+  ].join('\n');
+}
+
+async function resolvePgDumpExecutable(env: NodeJS.ProcessEnv): Promise<string> {
+  const resolver = process.platform === 'win32' ? 'where.exe' : 'which';
+  const executableName = process.platform === 'win32' ? 'pg_dump.exe' : 'pg_dump';
+  const { stdout } = await execFileAsync(resolver, [executableName], { env, windowsHide: true });
+  const executable = stdout.split(/\r?\n/).map((line) => line.trim()).find(Boolean);
+  if (!executable) throw new Error('Não foi possível resolver o caminho do executável pg_dump.');
+  return executable;
+}
+
 export function assertBaselineDumpMatches(actual: string, expected: string): void {
-  if (actual.replace(/\r\n/g, '\n') !== expected.replace(/\r\n/g, '\n')) {
+  if (normalizeBaselineDump(actual) !== normalizeBaselineDump(expected)) {
     throw new Error('Baseline incompatível: pg_dump do schema atual diverge de database/baseline/000_schema.sql. Nenhum marcador foi registrado.');
   }
+}
+
+export function createBaselineDumpEnvironment(
+  baseEnvironment: NodeJS.ProcessEnv,
+  password: string,
+): NodeJS.ProcessEnv {
+  const env = { ...baseEnvironment };
+  for (const name of Object.keys(env)) {
+    if (/^PG/i.test(name)) delete env[name];
+  }
+  env.PGPASSWORD = password;
+  return env;
 }
 
 export function assertSafeTarget(config: MigrationTarget): void {
@@ -194,18 +342,50 @@ async function verifyBaselineDump(pool: Pool, baselineFile: string): Promise<voi
     user: pool.options.user,
     password,
   };
-  const env = { ...process.env };
-  if (config.host) env.PGHOST = config.host;
-  if (config.port) env.PGPORT = String(config.port);
-  if (config.database) env.PGDATABASE = config.database;
-  if (config.user) env.PGUSER = config.user;
-  if (config.password) env.PGPASSWORD = config.password;
-  const { stdout } = await execFileAsync('pg_dump', [
+  if (!config.host || !config.port || !config.database || !config.user || !password) {
+    throw new Error('Configuração incompleta para gerar o dump do baseline.');
+  }
+  const env = createBaselineDumpEnvironment(process.env, password);
+  const args = [
     '--schema-only', '--no-owner', '--schema=public',
     '--exclude-table=public.vivacare_schema_migrations',
     `--restrict-key=${BASELINE_RESTRICT_KEY}`,
-  ], { env, maxBuffer: 32 * 1024 * 1024, windowsHide: true });
-  assertBaselineDumpMatches(stdout, expected);
+    '--host', config.host,
+    '--port', String(config.port),
+    '--username', config.user,
+    '--dbname', config.database,
+    '--no-password',
+  ];
+  const executable = await resolvePgDumpExecutable(env);
+  const { stdout: executableVersion } = await execFileAsync(executable, ['--version'], { env, windowsHide: true });
+  if (!/^pg_dump \(PostgreSQL\) 18\.4(?:\s|$)/m.test(executableVersion)) {
+    throw new Error('verifyBaselineDump resolveu um pg_dump diferente de 18.4; nenhuma comparação foi feita.');
+  }
+  const { stdout } = await execFileAsync(executable, args, {
+    env,
+    maxBuffer: 32 * 1024 * 1024,
+    windowsHide: true,
+  });
+  try {
+    assertBaselineDumpMatches(stdout, expected);
+  } catch (error) {
+    const safeArgs = args.map((argument, index) =>
+      args[index - 1] === '--restrict-key' || argument.startsWith('--restrict-key=')
+        ? '--restrict-key=[configured]'
+        : argument,
+    );
+    const details = [
+      'Diagnóstico seguro de verifyBaselineDump:',
+      `Executável: ${executable}`,
+      `Versão executada: ${executableVersion.trim()}`,
+      `Argumentos efetivos: ${safeArgs.join(' ')}`,
+      `Baseline: ${baselineFile}`,
+      'Ambiente de conexão: variáveis PG* herdadas removidas; senha fornecida apenas ao processo e não exibida.',
+      describeBaselineDumpMismatch(stdout, expected),
+    ].join('\n');
+    const message = error instanceof Error ? error.message : 'Falha na comparação do baseline.';
+    throw new Error(`${message}\n${details}`);
+  }
 }
 
 export async function recordBaseline(pool: Pool, baselineFile: string): Promise<void> {
