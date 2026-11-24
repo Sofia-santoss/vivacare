@@ -62,6 +62,13 @@ export interface StaffSessionResult {
   user: StaffUser | null;
 }
 
+export type ManagementResource = 'setores' | 'equipes' | 'turnos' | 'escalas' | 'usuarios';
+
+export interface ManagementListResult {
+  data: Record<string, unknown>[];
+  pagination: { page: number; pageSize: number; total: number; totalPages: number };
+}
+
 export type ManifestationType = 'ELOGIO' | 'RECLAMACAO' | 'SUGESTAO';
 
 /** Dados identificaveis enviados apenas pelo fluxo separado da Ouvidoria. */

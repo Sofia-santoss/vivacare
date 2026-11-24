@@ -6,6 +6,8 @@ import type {
   SubmitPublicSurveyBody,
   StaffSessionResult,
   StaffUser,
+  ManagementListResult,
+  ManagementResource,
 } from './contracts';
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api').replace(/\/$/, '');
@@ -95,4 +97,9 @@ export async function logoutStaff(): Promise<void> {
 
 export async function acceptStaffInvite(token: string, password: string): Promise<void> {
   await request<unknown>('/usuarios/convites/aceitar', { method: 'POST', body: JSON.stringify({ token, password }) });
+}
+
+export function getManagementRecords(resource: ManagementResource, page = 1, pageSize = 25): Promise<ManagementListResult> {
+  const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  return request(`/${resource}?${query.toString()}`);
 }

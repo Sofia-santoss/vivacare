@@ -2,6 +2,7 @@
 import { Ouvidoria } from './Ouvidoria';
 import { TvWall } from './TvWall';
 import { Button } from './components/Button';
+import { ManagementApiList } from './components/ManagementApiList';
 import type { FormEvent } from 'react';
 import type { StaffUser } from './api/contracts';
 
@@ -12,6 +13,9 @@ const navigation = [
   { label: 'Ouvidoria', icon: '♡' },
   { label: 'Perguntas', icon: '☷' },
   { label: 'Setores', icon: '⌂' },
+  { label: 'Equipes', icon: '♧' },
+  { label: 'Turnos', icon: '◷' },
+  { label: 'Escalas', icon: '▦' },
   { label: 'Usuários', icon: '♙' },
   { label: 'Configurações', icon: '⚙' },
 ];
@@ -29,6 +33,8 @@ export function Dashboard({ onBack, user, previewMode }: DashboardProps) {
   const [form, setForm] = useState<Section | null>(null);
   const [notice, setNotice] = useState('');
   const [drafts, setDrafts] = useState<Record<string, DraftRecord[]>>({});
+  const apiSections = ['Setores', 'Equipes', 'Turnos', 'Escalas', 'Usuários'] as const;
+  const isApiSection = (apiSections as readonly string[]).includes(active);
 
   const saveDraft = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -62,13 +68,13 @@ export function Dashboard({ onBack, user, previewMode }: DashboardProps) {
       <section className="dashboard-content">
         <div className="dashboard-heading"><div><div className="eyebrow">PAINEL DE GESTÃO</div><h1>{active}</h1><p>{previewMode ? 'Prévia visual · não consulta nem altera dados' : 'Sessão autenticada · dados reais ainda dependem das APIs do painel'}</p></div><div className="dashboard-actions"><span className="refresh-label">{previewMode ? 'Prévia local' : 'Sessão válida'}</span><button className="tvwall-open-button" onClick={() => setShowTvWall(true)}>◱ TV Wall</button></div></div>
         {notice && <p className="inline-notice" role="status">{notice}</p>}
-        {active !== 'Ouvidoria' && active !== 'Configurações' && <div className="filter-bar">
+        {!isApiSection && active !== 'Ouvidoria' && active !== 'Configurações' && <div className="filter-bar">
           <label>Setor<select value={sector} onChange={(e) => setSector(e.target.value)}><option>Todos os setores</option><option>Recepção</option><option>Enfermagem</option><option>Pronto Atendimento</option><option>Internação</option><option>Farmácia</option></select></label>
           <label>Período<select value={period} onChange={(e) => setPeriod(e.target.value)}><option>Últimos 30 dias</option><option>Últimos 7 dias</option><option>Este mês</option><option>Este ano</option></select></label>
           <label>Turno<select value={shift} onChange={(e) => setShift(e.target.value)}><option>Todos os turnos</option><option>Manhã</option><option>Tarde</option><option>Noite</option></select></label>
           <Button className="filter-button" onClick={() => { setApplied(true); setNotice('Filtros prontos. Os resultados aparecerão quando a API estiver conectada.'); }}>Aplicar filtros</Button>
         </div>}
-        {active === 'Ouvidoria' ? <Ouvidoria /> : active === 'Visão geral' ? <Overview period={period} sector={sector} shift={shift} applied={applied} /> : active === 'Indicadores' ? <Indicators period={period} /> : active === 'Pesquisas' || active === 'Perguntas' || active === 'Setores' || active === 'Usuários' ? <ListSection title={active === 'Perguntas' ? 'Perguntas do setor' : active === 'Usuários' ? 'Usuários e permissões' : active} description={active === 'Perguntas' ? 'Gerencie perguntas e sua obrigatoriedade na pesquisa.' : active === 'Usuários' ? 'Acesso administrativo por perfil e setor.' : active === 'Setores' ? 'Setores associados às pesquisas da instituição.' : 'Pesquisas configuradas para os setores do hospital.'} records={drafts[active] ?? []} onCreate={() => setForm(active)} onRemove={(id) => removeDraft(active, id)} /> : <Settings onSave={() => setNotice('Preferências atualizadas apenas nesta visualização. A API ainda não está conectada.')} />}
+        {active === 'Ouvidoria' ? <Ouvidoria /> : active === 'Visão geral' ? <Overview period={period} sector={sector} shift={shift} applied={applied} /> : active === 'Indicadores' ? <Indicators period={period} /> : !previewMode && isApiSection ? <ManagementApiList section={active as (typeof apiSections)[number]} /> : active === 'Pesquisas' || active === 'Perguntas' || isApiSection ? <ListSection title={active === 'Perguntas' ? 'Perguntas do setor' : active === 'Usuários' ? 'Usuários e permissões' : active === 'Setores' || active === 'Equipes' || active === 'Turnos' || active === 'Escalas' ? active : 'Pesquisas'} description={active === 'Perguntas' ? 'Gerencie perguntas e sua obrigatoriedade na pesquisa.' : active === 'Usuários' ? 'Acesso administrativo por perfil e setor.' : 'Prévia local da área de gestão.'} records={drafts[active] ?? []} onCreate={() => setForm(active)} onRemove={(id) => removeDraft(active, id)} /> : <Settings onSave={() => setNotice('Preferências atualizadas apenas nesta visualização. A API ainda não está conectada.')} />}
         {form && <FormDialog section={form} onClose={() => setForm(null)} onSubmit={saveDraft} />}
       </section>
     </div>

@@ -44,7 +44,7 @@ export function App() {
   }} />;
 }
 function ManagementLogin({ onBack, onPreview, onAuthenticated }: { onBack: () => void; onPreview: () => void; onAuthenticated: (user: StaffUser) => void }) {
-  const inviteToken = new URLSearchParams(window.location.search).get('token') ?? '';
+  const inviteToken = new URLSearchParams(window.location.hash.replace(/^#/, '')).get('token') ?? '';
   const [authScreen, setAuthScreen] = useState<'login' | 'forgot' | 'new-password'>(window.location.pathname === '/primeiro-acesso' ? 'new-password' : 'login');
   const [message, setMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -121,8 +121,8 @@ function ManagementLogin({ onBack, onPreview, onAuthenticated }: { onBack: () =>
         <Button type="submit">Solicitar recuperação</Button><button className="text-link auth-link" type="button" onClick={() => changeAuthScreen('login')}>Voltar para entrar</button>
       </form></section>}
       {authScreen === 'new-password' && <section className="dashboard-card login-card"><Brand /><h2>Crie sua senha de acesso</h2><p>{inviteToken ? 'Escolha uma senha para ativar sua conta.' : 'Abra o link de convite enviado pela administracao para ativar sua conta.'}</p>{inviteToken && <form onSubmit={submitPassword}>
-        <label className="field-label" htmlFor="new-password">Nova senha</label><input id="new-password" name="new-password" type={showNewPasswords ? 'text' : 'password'} autoComplete="new-password" minLength={10} required />
-        <label className="field-label" htmlFor="confirm-password">Confirmar nova senha</label><input id="confirm-password" name="confirm-password" type={showNewPasswords ? 'text' : 'password'} autoComplete="new-password" minLength={10} required />
+        <label className="field-label" htmlFor="new-password">Nova senha</label><input id="new-password" name="new-password" type={showNewPasswords ? 'text' : 'password'} autoComplete="new-password" minLength={12} required />
+        <label className="field-label" htmlFor="confirm-password">Confirmar nova senha</label><input id="confirm-password" name="confirm-password" type={showNewPasswords ? 'text' : 'password'} autoComplete="new-password" minLength={12} required />
         <button className="text-link" type="button" onClick={() => setShowNewPasswords((value) => !value)}>{showNewPasswords ? 'Ocultar senhas' : 'Mostrar senhas'}</button>
         <Button type="submit" disabled={busy}>{busy ? 'Ativando conta...' : 'Ativar conta'}</Button><button className="text-link auth-link" type="button" onClick={() => changeAuthScreen('login')}>Voltar para entrar</button>
       </form>}{!inviteToken && <button className="text-link auth-link" type="button" onClick={() => changeAuthScreen('login')}>Voltar para entrar</button>}</section>}
