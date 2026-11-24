@@ -1,7 +1,32 @@
 import express from 'express';
+import { env } from './config/env.js';
 import { pool } from './db/pool.js';
+import { publicSurveyRouter } from './routes/publicSurveyRoutes.js';
 
 export const app = express();
+app.disable('x-powered-by');
+
+app.use((req, res, next) => {
+  const origin = req.get('origin');
+  if (origin === env.frontendOrigin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.vary('Origin');
+  }
+
+  if (req.method === 'OPTIONS') {
+    if (origin && origin !== env.frontendOrigin) {
+      return res.status(403).end();
+    }
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Idempotency-Key');
+    return res.status(204).end();
+  }
+
+  return next();
+});
+app.use(express.json({ limit: '32kb' }));
+app.use('/api/public', publicSurveyRouter);
 
 app.get('/health', async (_req, res) => {
   try {
