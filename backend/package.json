@@ -12,8 +12,13 @@
     "typecheck": "tsc --noEmit",
     "db:check": "tsx --env-file-if-exists=.env src/db/verificar.ts",
     "db:migrate": "tsx --env-file-if-exists=.env src/db/migrator.ts",
-    "test": "vitest run --exclude src/auth/loginAttempts.integration.test.ts --exclude src/db/migrator.integration.test.ts --exclude src/setores/setores.integration.test.ts --exclude src/usuarios/usuarios.integration.test.ts --configLoader native --pool threads --maxWorkers 1",
-    "test:db": "node scripts/assert-migrator-test-db.mjs && vitest run src/db/migrator.integration.test.ts --configLoader native --pool threads --maxWorkers 1"
+    "test": "vitest run --exclude src/auth/loginAttempts.integration.test.ts --exclude src/db/migrator.integration.test.ts --exclude src/setores/setores.integration.test.ts --exclude src/usuarios/usuarios.integration.test.ts --exclude src/pesquisas/submissao.integration.test.ts --configLoader native --pool threads --maxWorkers 1",
+    "test:surveys:guard": "vitest run src/config/surveysTestDbGuard.test.ts --configLoader native --pool threads --maxWorkers 1",
+    "test:surveys:db": "node scripts/assert-surveys-test-db.mjs && vitest run src/pesquisas/submissao.integration.test.ts --configLoader native --pool threads --maxWorkers 1",
+    "test:db": "node scripts/assert-migrator-test-db.mjs && vitest run src/db/migrator.integration.test.ts --configLoader native --pool threads --maxWorkers 1",
+    "test:auth:db": "node scripts/assert-auth-test-db.mjs && vitest run src/auth/loginAttempts.integration.test.ts --configLoader native --pool threads --maxWorkers 1",
+    "test:setores:db": "node scripts/assert-setores-test-db.mjs && vitest run src/setores/setores.integration.test.ts --configLoader native --pool threads --maxWorkers 1",
+    "test:users:db": "node scripts/assert-users-test-db.mjs && vitest run src/usuarios/usuarios.integration.test.ts --configLoader native --pool threads --maxWorkers 1"
   },
   "license": "UNLICENSED",
   "dependencies": {

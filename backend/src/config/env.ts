@@ -1,3 +1,5 @@
+import { parseNodeEnv } from './nodeEnv.js';
+
 function obrigatoria(nome: string): string {
   const valor = process.env[nome];
   if (valor === undefined || valor.trim() === '') {
@@ -26,7 +28,7 @@ const frontendOrigin = process.env.FRONTEND_ORIGIN?.trim() || (
 );
 
 export const env = {
-  nodeEnv,
+  nodeEnv: parseNodeEnv(process.env.NODE_ENV),
   frontendOrigin,
   port: numero('PORT', 3000),
   db: {

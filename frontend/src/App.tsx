@@ -4,7 +4,7 @@ import { Dashboard } from './Dashboard';
 import { PublicSurveyFlow } from './components/PublicSurveyFlow';
 import { Button } from './components/Button';
 import { validatePasswordConfirmation } from './domain/validation.js';
-import { changeStaffPassword, getStaffSession, loginStaff, logoutStaff } from './api/client';
+import { acceptStaffInvite, getStaffSession, loginStaff, logoutStaff } from './api/client';
 import type { StaffUser } from './api/contracts';
 
 type StaffView = 'patient' | 'login' | 'dashboard';
@@ -17,7 +17,7 @@ function Brand() {
 }
 
 export function App() {
-  const [staffView, setStaffView] = useState<StaffView>('patient');
+  const [staffView, setStaffView] = useState<StaffView>(window.location.pathname === '/primeiro-acesso' ? 'login' : 'patient');
   const [knownUser, setKnownUser] = useState<StaffUser | null>(null);
   const [previewMode, setPreviewMode] = useState(false);
   useEffect(() => {
@@ -44,12 +44,12 @@ export function App() {
   }} />;
 }
 function ManagementLogin({ onBack, onPreview, onAuthenticated }: { onBack: () => void; onPreview: () => void; onAuthenticated: (user: StaffUser) => void }) {
-  const [authScreen, setAuthScreen] = useState<'login' | 'forgot' | 'new-password'>('login');
+  const inviteToken = new URLSearchParams(window.location.search).get('token') ?? '';
+  const [authScreen, setAuthScreen] = useState<'login' | 'forgot' | 'new-password'>(window.location.pathname === '/primeiro-acesso' ? 'new-password' : 'login');
   const [message, setMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showNewPasswords, setShowNewPasswords] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [passwordSetupUser, setPasswordSetupUser] = useState<StaffUser | null>(null);
   const submitLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const fields = new FormData(event.currentTarget);
@@ -57,10 +57,7 @@ function ManagementLogin({ onBack, onPreview, onAuthenticated }: { onBack: () =>
     setMessage('');
     try {
       const result = await loginStaff(String(fields.get('email') ?? ''), String(fields.get('password') ?? ''));
-      if (result.user.mustChangePassword) {
-        setPasswordSetupUser(result.user);
-        setAuthScreen('new-password');
-      } else onAuthenticated(result.user);
+      onAuthenticated(result.user);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Nao foi possivel entrar. Tente novamente.');
     } finally {
@@ -78,16 +75,22 @@ function ManagementLogin({ onBack, onPreview, onAuthenticated }: { onBack: () =>
       setMessage(validation.message);
       return;
     }
-    if (!passwordSetupUser) {
-      setMessage('Entre com a senha temporaria fornecida pela equipe para criar sua senha.');
-      setAuthScreen('login');
+    if (!inviteToken) {
+      setMessage('O primeiro acesso so funciona pelo link de convite enviado pela administracao.');
+      return;
+    }
+    const newPassword = String(fields.get('new-password') ?? '');
+    if (newPassword.length < 12) {
+      setMessage('A senha precisa ter pelo menos 12 caracteres.');
       return;
     }
     setBusy(true);
     setMessage('');
     try {
-      await changeStaffPassword(String(fields.get('temporary-password') ?? ''), String(fields.get('new-password') ?? ''));
-      onAuthenticated({ ...passwordSetupUser, mustChangePassword: false });
+      await acceptStaffInvite(inviteToken, newPassword);
+      window.history.replaceState({}, '', '/');
+      setMessage('Conta ativada. Agora entre com seu e-mail e a senha criada.');
+      setAuthScreen('login');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Nao foi possivel atualizar a senha.');
     } finally {
@@ -117,13 +120,12 @@ function ManagementLogin({ onBack, onPreview, onAuthenticated }: { onBack: () =>
         <label className="field-label" htmlFor="recovery-email">E-mail cadastrado</label><input id="recovery-email" type="email" autoComplete="email" required placeholder="nome@hospital.org.br" />
         <Button type="submit">Solicitar recuperação</Button><button className="text-link auth-link" type="button" onClick={() => changeAuthScreen('login')}>Voltar para entrar</button>
       </form></section>}
-      {authScreen === 'new-password' && <section className="dashboard-card login-card"><Brand /><h2>Crie sua nova senha</h2><p>Use esta opção se recebeu uma senha temporária da equipe.</p><form onSubmit={submitPassword}>
-        <label className="field-label" htmlFor="temporary-password">Senha temporária</label><input id="temporary-password" name="temporary-password" type={showNewPasswords ? 'text' : 'password'} autoComplete="one-time-code" required />
+      {authScreen === 'new-password' && <section className="dashboard-card login-card"><Brand /><h2>Crie sua senha de acesso</h2><p>{inviteToken ? 'Escolha uma senha para ativar sua conta.' : 'Abra o link de convite enviado pela administracao para ativar sua conta.'}</p>{inviteToken && <form onSubmit={submitPassword}>
         <label className="field-label" htmlFor="new-password">Nova senha</label><input id="new-password" name="new-password" type={showNewPasswords ? 'text' : 'password'} autoComplete="new-password" minLength={10} required />
         <label className="field-label" htmlFor="confirm-password">Confirmar nova senha</label><input id="confirm-password" name="confirm-password" type={showNewPasswords ? 'text' : 'password'} autoComplete="new-password" minLength={10} required />
         <button className="text-link" type="button" onClick={() => setShowNewPasswords((value) => !value)}>{showNewPasswords ? 'Ocultar senhas' : 'Mostrar senhas'}</button>
-        <Button type="submit" disabled={busy}>{busy ? 'Salvando...' : 'Salvar nova senha'}</Button><button className="text-link auth-link" type="button" onClick={() => changeAuthScreen('login')}>Voltar para entrar</button>
-      </form></section>}
+        <Button type="submit" disabled={busy}>{busy ? 'Ativando conta...' : 'Ativar conta'}</Button><button className="text-link auth-link" type="button" onClick={() => changeAuthScreen('login')}>Voltar para entrar</button>
+      </form>}{!inviteToken && <button className="text-link auth-link" type="button" onClick={() => changeAuthScreen('login')}>Voltar para entrar</button>}</section>}
     </div>
     <aside className="preview-access"><strong>Prévia para apresentação</strong><p>Esta opção abre a interface sem autenticar e não concede acesso protegido nem consulta dados.</p><Button variante="secundario" onClick={onPreview}>Visualizar painel sem autenticação</Button></aside>
   </main>;

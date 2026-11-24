@@ -9,6 +9,7 @@ import type {
 } from './contracts';
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api').replace(/\/$/, '');
+let csrfToken: string | null = null;
 
 export class ApiClientError extends Error {
   constructor(message: string, readonly status: number, readonly code: string) {
@@ -35,8 +36,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const body: unknown = await response.json().catch(() => null);
   if (!response.ok) {
     const errorBody = body as Partial<ApiErrorBody> | null;
+    const apiMessage = errorBody?.message ?? (body as { error?: string } | null)?.error;
     throw new ApiClientError(
-      errorBody?.message || 'A solicitacao nao foi concluida. Tente novamente.',
+      apiMessage || 'A solicitacao nao foi concluida. Tente novamente.',
       response.status,
       errorBody?.code || 'HTTP_ERROR',
     );
@@ -71,21 +73,26 @@ export function submitOmbudsmanRequest(
   });
 }
 
-export function loginStaff(email: string, password: string): Promise<{ user: StaffUser }> {
-  return request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+export async function loginStaff(email: string, password: string): Promise<{ user: StaffUser }> {
+  const result = await request<{ user: { userId: string; name: string; email: string; profile: { code: string } }; csrfToken: string }>(
+    '/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) },
+  );
+  csrfToken = result.csrfToken;
+  return { user: { id: result.user.userId, name: result.user.name, email: result.user.email, role: result.user.profile.code, mustChangePassword: false } };
 }
 
-export function getStaffSession(): Promise<StaffSessionResult> {
-  return request('/auth/session');
+export async function getStaffSession(): Promise<StaffSessionResult> {
+  const result = await request<{ user: { userId: string; name: string; email: string; profile: { code: string } } }>('/auth/me');
+  const csrf = await request<{ csrfToken: string }>('/auth/csrf');
+  csrfToken = csrf.csrfToken;
+  return { authenticated: true, user: { id: result.user.userId, name: result.user.name, email: result.user.email, role: result.user.profile.code, mustChangePassword: false } };
 }
 
-export function logoutStaff(): Promise<{ status: 'signed_out' }> {
-  return request('/auth/logout', { method: 'POST', body: JSON.stringify({}) });
+export async function logoutStaff(): Promise<void> {
+  await request<unknown>('/auth/logout', { method: 'POST', headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {} });
+  csrfToken = null;
 }
 
-export function changeStaffPassword(currentPassword: string, newPassword: string): Promise<{ status: 'password_changed' }> {
-  return request('/auth/change-password', {
-    method: 'POST',
-    body: JSON.stringify({ currentPassword, newPassword }),
-  });
+export async function acceptStaffInvite(token: string, password: string): Promise<void> {
+  await request<unknown>('/usuarios/convites/aceitar', { method: 'POST', body: JSON.stringify({ token, password }) });
 }
