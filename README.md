@@ -35,4 +35,4 @@ Em construção. Esta seção será preenchida conforme o projeto for montado.
 
 ## Equipe
 
-Projeto desenvolvido em dupla por estudantes de Informática.
+Projeto desenvolvido em dupla pelas estudantes Sofia Rodrigues Santos e Raissa de Oliveira Lahm de Informática.
