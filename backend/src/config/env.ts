@@ -22,8 +22,14 @@ function numero(nome: string, padrao?: number): number {
   return valor;
 }
 
+const nodeEnv = process.env.NODE_ENV ?? 'development';
+const frontendOrigin = process.env.FRONTEND_ORIGIN?.trim() || (
+  nodeEnv === 'production' ? obrigatoria('FRONTEND_ORIGIN').trim() : 'http://localhost:5173'
+);
+
 export const env = {
   nodeEnv: parseNodeEnv(process.env.NODE_ENV),
+  frontendOrigin,
   port: numero('PORT', 3000),
   db: {
     host: obrigatoria('DB_HOST'),

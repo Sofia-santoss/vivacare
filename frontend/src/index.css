@@ -1,4 +1,4 @@
-﻿@import "tailwindcss";
+@import "tailwindcss";
 
 @theme {
   --font-sans: Inter, system-ui, "Segoe UI", Roboto, Arial, sans-serif;
@@ -333,6 +333,7 @@ textarea { min-height: 100px; resize: vertical; }
 .submission-summary > strong { display: block; margin-bottom: 8px; font-size: 11px; }
 .submission-summary > div { display: flex; justify-content: space-between; gap: 10px; padding: 5px 0; color: #667085; font-size: 10px; }
 .submission-summary b { color: #344054; font-size: 10px; }
+.contact-form select { width: 100%; margin-bottom: 17px; border: 1px solid #cfd8e3; border-radius: 9px; padding: 12px; background: #fff; color: #2a0806; font-size: 13px; }
 .contact-form { display: flex; flex: 1; flex-direction: column; }
 @media (max-width: 760px) {
   .indicator-grid, .login-cards { grid-template-columns: 1fr; }

@@ -1,5 +1,7 @@
 import express from 'express';
 import { pool } from './db/pool.js';
+import { publicSurveyRouter } from './routes/publicSurveyRoutes.js';
+import { publicOmbudsmanRouter } from './routes/publicOmbudsmanRoutes.js';
 import { parseHmacSecret, parseLoginThrottleSecret } from './auth/loginAttempts.js';
 import { parseIpRateLimitConfig } from './auth/ipRateLimit.js';
 import { isTrustedProxy, parseTrustedProxyIps } from './auth/trustedProxies.js';
@@ -31,7 +33,8 @@ import { createSubmissaoPesquisaRouter } from './pesquisas/submissaoRoutes.js';
 import { createPublicSubmissionRateLimit } from './pesquisas/publicSubmissionRateLimit.js';
 
 export const app = express();
-const allowedOrigins = parseAllowedOrigins(process.env.AUTH_ALLOWED_ORIGINS ?? '');
+app.disable('x-powered-by');
+const allowedOrigins = parseAllowedOrigins(process.env.AUTH_ALLOWED_ORIGINS ?? process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173');
 const nodeEnv = parseNodeEnv(process.env.NODE_ENV);
 const trustedProxyIps = parseTrustedProxyIps(process.env.TRUSTED_PROXY_IPS);
 app.set('trust proxy', (address: string) => isTrustedProxy(address, trustedProxyIps));
@@ -50,7 +53,8 @@ const publicSubmissionIpLimit=parseIpRateLimitConfig(process.env.PUBLIC_SURVEY_I
 assertProductionSubmissionIpLimit(nodeEnv,publicSubmissionIpLimit!==null);
 // Limit before parsing JSON to throttle abusive bodies as well as valid submissions.
 app.use('/api/pesquisas/publicas/:codigo/respostas',createPublicSubmissionRateLimit(pool,publicSubmissionIpLimit,authOptions.loginThrottleSecret));
-app.use(express.json({ limit: '16kb', strict: true }));
+app.use(express.json({ limit: '32kb', strict: true }));
+app.use('/api/public', publicSurveyRouter, publicOmbudsmanRouter);
 const inviteUrlBase = process.env.USER_INVITE_URL_BASE
   ?? `${[...allowedOrigins][0] ?? 'http://localhost:5173'}/primeiro-acesso`;
 const parsedInviteUrl = new URL(inviteUrlBase);
@@ -74,7 +78,6 @@ protectedApi.use('/turnos', createTurnosRouter(pool, new TurnosService(new Turno
 protectedApi.use('/escalas', createEscalasRouter(pool, new EscalasService(new EscalasRepository(pool))));
 protectedApi.use('/usuarios', createUsuariosRouter(pool, usuariosRepository));
 app.use('/api', createAuthenticationMiddleware(authOptions), createCsrfProtection(authOptions), protectedApi);
-
 app.get('/health', async (_req, res) => {
   try {
     await pool.query('SELECT 1');
