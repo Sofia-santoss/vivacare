@@ -110,6 +110,10 @@ O schema atual não oferece uma lista de opções para perguntas do tipo `OPCAO`
 - [Kanban: fluxo e tarefas iniciais](docs/KANBAN.md)
 - [Especificação OpenAPI](docs/openapi.yaml)
 - [Privacidade das pesquisas](docs/PRIVACIDADE_PESQUISAS.md)
+- [Modelo de dados, entidades e paradigma](docs/modelo-de-dados-e-requisitos.md)
+- [Padrões de nomenclatura do banco](docs/padroes-banco-de-dados.md)
+- [Repositórios de persistência e consultas críticas](docs/mapeamento-classes-e-consultas.md)
+- [Segurança e hospedagem cloud do banco](docs/seguranca-e-nuvem.md)
 
 A especificação OpenAPI está versionada no repositório. A interface Swagger online e um quadro Kanban compartilhado ainda dependem da ativação/configuração dos serviços correspondentes; não existe URL pública ativa para informar neste momento.
 
