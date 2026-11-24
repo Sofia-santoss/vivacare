@@ -4,6 +4,8 @@ import type {
   PublicSurvey,
   PublicSubmissionResult,
   SubmitPublicSurveyBody,
+  StaffSessionResult,
+  StaffUser,
 } from './contracts';
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api').replace(/\/$/, '');
@@ -20,6 +22,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     response = await fetch(`${apiBaseUrl}${path}`, {
       ...init,
+      credentials: 'include',
       headers: {
         ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
         ...init?.headers,
@@ -65,5 +68,24 @@ export function submitOmbudsmanRequest(
     method: 'POST',
     headers: { 'Idempotency-Key': idempotencyKey },
     body: JSON.stringify(payload),
+  });
+}
+
+export function loginStaff(email: string, password: string): Promise<{ user: StaffUser }> {
+  return request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+}
+
+export function getStaffSession(): Promise<StaffSessionResult> {
+  return request('/auth/session');
+}
+
+export function logoutStaff(): Promise<{ status: 'signed_out' }> {
+  return request('/auth/logout', { method: 'POST', body: JSON.stringify({}) });
+}
+
+export function changeStaffPassword(currentPassword: string, newPassword: string): Promise<{ status: 'password_changed' }> {
+  return request('/auth/change-password', {
+    method: 'POST',
+    body: JSON.stringify({ currentPassword, newPassword }),
   });
 }

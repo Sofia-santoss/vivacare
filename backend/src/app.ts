@@ -3,6 +3,7 @@ import { env } from './config/env.js';
 import { pool } from './db/pool.js';
 import { publicSurveyRouter } from './routes/publicSurveyRoutes.js';
 import { publicOmbudsmanRouter } from './routes/publicOmbudsmanRoutes.js';
+import { authRouter } from './routes/authRoutes.js';
 
 export const app = express();
 app.disable('x-powered-by');
@@ -27,6 +28,7 @@ app.use((req, res, next) => {
   return next();
 });
 app.use(express.json({ limit: '32kb' }));
+app.use('/api/auth', authRouter);
 app.use('/api/public', publicSurveyRouter, publicOmbudsmanRouter);
 
 app.get('/health', async (_req, res) => {

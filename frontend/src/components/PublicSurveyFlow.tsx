@@ -8,6 +8,19 @@ import { Button } from './Button';
 type Screen = 'access' | 'welcome' | 'questions' | 'nps' | 'thanks' | 'care' | 'contact' | 'done';
 type Answers = Record<string, PublicAnswerValue | undefined>;
 
+const previewSurvey: PublicSurvey = {
+  id: 'preview-survey',
+  publicCode: '00000000-0000-4000-8000-000000000001',
+  title: 'Pesquisa de demonstracao',
+  description: 'Previa local para conhecer o fluxo. Nenhuma resposta sera salva.',
+  sectorName: 'Recepcao',
+  questions: [
+    { id: 'preview-recepcao', text: 'Como foi o atendimento da Recepcao?', stage: 'RECEPCAO', answerType: 'NOTA', required: true, position: 1 },
+    { id: 'preview-triagem', text: 'Como foi o atendimento da Triagem?', stage: 'TRIAGEM', answerType: 'NOTA', required: true, position: 2 },
+    { id: 'preview-enfermagem', text: 'Como foi o atendimento da Enfermagem?', stage: 'ENFERMAGEM', answerType: 'NOTA', required: true, position: 3 },
+    { id: 'preview-medico', text: 'Como foi o atendimento da equipe medica?', stage: 'MEDICO', answerType: 'NOTA', required: true, position: 4 },
+  ],
+};
 const ratingLabels = ['Muito ruim', 'Ruim', 'Regular', 'Bom', 'Muito bom'];
 const screenLabels: Record<Screen, string> = {
   access: 'Acesso a pesquisa', welcome: 'Boas-vindas', questions: 'Perguntas da pesquisa',
@@ -55,9 +68,11 @@ function validateAnswer(question: PublicSurveyQuestion, value: PublicAnswerValue
 }
 
 export function PublicSurveyFlow({ onStaffLogin }: { onStaffLogin: () => void }) {
-  const initialCode = new URLSearchParams(window.location.search).get('codigo') ?? '';
+  const query = new URLSearchParams(window.location.search);
+  const previewMode = query.get('preview') === '1';
+  const pathCode = window.location.pathname.match(/^\/pesquisa\/([^/]+)\/?$/)?.[1];
+  const initialCode = query.get('codigo') ?? (pathCode ? decodeURIComponent(pathCode) : '');
   const [screen, setScreen] = useState<Screen>('access');
-  const [surveyCode, setSurveyCode] = useState(initialCode);
   const [survey, setSurvey] = useState<PublicSurvey | null>(null);
   const [questionIndex, setQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Answers>({});
@@ -84,16 +99,14 @@ export function PublicSurveyFlow({ onStaffLogin }: { onStaffLogin: () => void })
   const totalSteps = (survey?.questions.length ?? 0) + 3;
   const progress = totalSteps && completedSteps ? Math.round((completedSteps / totalSteps) * 100) : 0;
 
-  const loadSurvey = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const code = surveyCode.trim();
-    if (!code) { setError('Informe o codigo da pesquisa.'); return; }
+  const loadSurvey = async (codeValue: string) => {
+    const code = codeValue.trim();
+    if (!code) { setError('Abra a pesquisa pelo link ou QR Code do seu setor.'); return; }
     setBusy(true);
     setError('');
     try {
       const result = await getPublicSurvey(code);
       setSurvey(result);
-      setSurveyCode(result.publicCode);
       setAnswers({});
       setNps(null);
       setQuestionIndex(0);
@@ -105,7 +118,18 @@ export function PublicSurveyFlow({ onStaffLogin }: { onStaffLogin: () => void })
       setBusy(false);
     }
   };
-
+  const openPreview = () => {
+    setSurvey(previewSurvey);
+    setQuestionIndex(0);
+    setAnswers({});
+    setNps(null);
+    setContactProtocol('');
+    setContactSubmitted(false);
+    setWantsContact(null);
+    surveyKey.current = null;
+    contactKey.current = null;
+    go('welcome');
+  };
   const setAnswer = (questionId: string, value: PublicAnswerValue) => {
     surveyKey.current = null;
     setAnswers((previous) => ({ ...previous, [questionId]: value }));
@@ -136,6 +160,7 @@ export function PublicSurveyFlow({ onStaffLogin }: { onStaffLogin: () => void })
     const validation = validateNps(nps);
     if (validation) { setError(validation.message); return; }
     if (!survey) { setError('Carregue uma pesquisa antes de enviar.'); return; }
+    if (previewMode) { go('thanks'); return; }
     setBusy(true);
     setError('');
     surveyKey.current ??= window.crypto.randomUUID();
@@ -162,6 +187,12 @@ export function PublicSurveyFlow({ onStaffLogin }: { onStaffLogin: () => void })
     event.preventDefault();
     const validation = validateContactRequest({ statement, phone, consent });
     if (validation) { setError(validation.message); return; }
+    if (previewMode) {
+      setContactSubmitted(true);
+      setWantsContact(true);
+      go('done');
+      return;
+    }
     setBusy(true);
     setError('');
     contactKey.current ??= window.crypto.randomUUID();
@@ -185,7 +216,7 @@ export function PublicSurveyFlow({ onStaffLogin }: { onStaffLogin: () => void })
   };
 
   const reset = () => {
-    setSurvey(null); setSurveyCode(''); setQuestionIndex(0); setAnswers({}); setNps(null);
+    setSurvey(null); setQuestionIndex(0); setAnswers({}); setNps(null);
     setManifestationType('RECLAMACAO'); setName(''); setPhone(''); setStatement(''); setConsent(false);
     setContactProtocol(''); setContactSubmitted(false); setWantsContact(null);
     surveyKey.current = null; contactKey.current = null; go('access');
@@ -195,7 +226,7 @@ export function PublicSurveyFlow({ onStaffLogin }: { onStaffLogin: () => void })
 
   return <main className="page">
     <section className="survey">
-      <header className="topbar"><Brand /><span className="survey-name">{survey ? survey.title : 'Pesquisa VivaCare'}</span></header>
+      <header className="topbar"><Brand /><span className="survey-name">{previewMode ? 'Previa local' : survey ? survey.title : 'Pesquisa VivaCare'}</span></header>
       {progress > 0 && <div className="progress-wrap">
         <div className="progress-meta"><span>Etapa {completedSteps} de {totalSteps}</span><span>{progress}%</span></div>
         <div className="progress-track"><span style={{ width: `${progress}%` }} /></div>
@@ -203,16 +234,19 @@ export function PublicSurveyFlow({ onStaffLogin }: { onStaffLogin: () => void })
       {screen === 'access' && <div className="screen access-screen" ref={screenRef} tabIndex={-1} role="region" aria-label={screenLabels[screen]}>
         <div className="welcome-art" aria-hidden="true"><span>✚</span></div>
         <div className="eyebrow">SUA OPINIAO E IMPORTANTE</div><h1>Queremos saber como foi sua experiencia.</h1>
-        <div className="info-card"><span className="info-icon">▣</span><span><small>PESQUISA DIGITAL</small><strong>Informe o codigo recebido</strong></span></div>
-        <form onSubmit={loadSurvey}>
-          <label className="field-label" htmlFor="public-survey-code">Codigo da pesquisa</label>
-          <input id="public-survey-code" autoComplete="off" value={surveyCode} onChange={(event) => setSurveyCode(event.target.value)} placeholder="UUID da pesquisa" required />
+        {previewMode ? <>
+          <div className="info-card"><span className="info-icon">▣</span><span><small>PREVIA LOCAL</small><strong>Explore as telas sem banco ou QR Code</strong></span></div>
+          <div className="privacy-card"><span>♧</span><p>As respostas desta demonstracao nao sao salvas e nenhum dado e enviado.</p></div>
+          <Button className="bottom-action" onClick={openPreview}>Abrir previa local</Button>
+        </> : <>
+          <div className="info-card"><span className="info-icon">▣</span><span><small>ACESSO A PESQUISA</small><strong>Use o link ou QR Code do seu setor</strong></span></div>
+          <div className="privacy-card"><span>♧</span><p>A pesquisa abre pelo link ou QR Code fornecido pelo hospital. Nao e necessario digitar codigo.</p></div>
           {error && <p className="error-message" role="alert">{error}</p>}
-          <Button type="submit" className="bottom-action" processando={busy} disabled={busy}>{busy ? 'Carregando pesquisa...' : 'Carregar pesquisa'}</Button>
-        </form>
+          <Button className="bottom-action" onClick={() => void loadSurvey(initialCode)} processando={busy} disabled={busy || !initialCode}>{busy ? 'Carregando pesquisa...' : 'Comecar avaliacao'}</Button>
+          {!initialCode && <p className="muted">Abra o link recebido ou leia o QR Code do setor para continuar.</p>}
+        </>}
         <button className="staff-link" onClick={onStaffLogin}>Acesso da equipe</button>
-      </div>}
-      {screen === 'welcome' && <div className="screen" ref={screenRef} tabIndex={-1} role="region" aria-label={screenLabels[screen]}>
+      </div>}      {screen === 'welcome' && <div className="screen" ref={screenRef} tabIndex={-1} role="region" aria-label={screenLabels[screen]}>
         <BackButton onClick={goBack} /><div className="eyebrow">BOAS-VINDAS</div><h1>Sua opiniao ajuda a melhorar nosso atendimento.</h1>
         <div className="info-card"><span className="info-icon">▤</span><span><small>{survey?.sectorName}</small><strong>{survey?.title}</strong></span></div>
         {survey?.description && <p className="helper">{survey.description}</p>}
@@ -245,14 +279,14 @@ export function PublicSurveyFlow({ onStaffLogin }: { onStaffLogin: () => void })
       </div>}
       {screen === 'nps' && <div className="screen" ref={screenRef} tabIndex={-1} role="region" aria-label={screenLabels[screen]}>
         <BackButton onClick={goBack} /><div className="eyebrow">RECOMENDACAO</div><h1>De 0 a 10, quanto voce recomendaria este hospital?</h1><p className="helper">0 significa pouco provavel e 10 muito provavel.</p>
-        <div className="nps-grid" role="group" aria-label="Nota de recomendacao de 0 a 10">{Array.from({ length: 11 }, (_, value) => <button key={value} className={'nps-option nps-' + (value < 7 ? 'low' : value < 9 ? 'mid' : 'high') + (nps === value ? ' selected' : '')} onClick={() => { setNps(value); surveyKey.current = null; setError(''); }} aria-pressed={nps === value}>{value}</button>)}</div>
-        <div className="scale-captions"><span>Pouco provavel</span><span>Muito provavel</span></div><div className="nps-legend"><span>0–6</span><span>7–8</span><span>9–10</span></div>
+        <div className="nps-grid" role="group" aria-label="Nota de recomendacao de 0 a 10">{Array.from({ length: 11 }, (_, value) => <button key={value} className={'nps-option nps-' + (value < 6 ? 'low' : value < 8 ? 'mid' : 'high') + (nps === value ? ' selected' : '')} onClick={() => { setNps(value); surveyKey.current = null; setError(''); }} aria-pressed={nps === value}>{value}</button>)}</div>
+        <div className="scale-captions"><span>Pouco provavel</span><span>Muito provavel</span></div><div className="nps-legend"><span>0–5</span><span>6–7</span><span>8–10</span></div>
         {error && <p className="error-message" role="alert">{error}</p>}<Button className="bottom-action" onClick={submitSurvey} processando={busy} disabled={busy}>{busy ? 'Enviando resposta...' : 'Enviar pesquisa'}</Button>
       </div>}
       {screen === 'thanks' && <div className="screen done-screen" ref={screenRef} tabIndex={-1} role="region" aria-label={screenLabels[screen]}>
-        <div className="eyebrow">RESPOSTA REGISTRADA</div><div className="done-icon">✓</div><h1>Obrigado por participar!</h1>
-        <p className="helper">Sua resposta foi enviada de forma anonima.</p>
-        <Button className="bottom-action" onClick={() => nps !== null && nps < 7 ? go('care') : go('done')}>Continuar</Button>
+        <div className="eyebrow">{previewMode ? 'PREVIA LOCAL' : 'RESPOSTA REGISTRADA'}</div><div className="done-icon">✓</div><h1>Obrigado por participar!</h1>
+        <p className="helper">{previewMode ? 'Previa local: a resposta nao foi salva nem enviada.' : 'Sua resposta foi enviada de forma anonima.'}</p>
+        <Button className="bottom-action" onClick={() => nps !== null && nps < 6 ? go('contact') : go('done')}>{nps !== null && nps < 6 ? 'Continuar para a Ouvidoria' : 'Continuar'}</Button>
       </div>}
       {screen === 'care' && <div className="screen" ref={screenRef} tabIndex={-1} role="region" aria-label={screenLabels[screen]}>
         <BackButton onClick={goBack} /><div className="eyebrow">CUIDADO E ESCUTA</div><h1>Podemos entender melhor o que aconteceu?</h1><div className="care-illustration" aria-hidden="true">♡</div>
@@ -260,7 +294,7 @@ export function PublicSurveyFlow({ onStaffLogin }: { onStaffLogin: () => void })
         <div className="button-stack"><Button onClick={() => { setWantsContact(null); go('contact'); }}>Sim, quero falar com a Ouvidoria</Button><Button variante="secundario" onClick={() => { setWantsContact(false); go('done'); }}>Nao, obrigado</Button></div>
       </div>}
       {screen === 'contact' && <div className="screen" ref={screenRef} tabIndex={-1} role="region" aria-label={screenLabels[screen]}>
-        <BackButton onClick={goBack} /><div className="eyebrow">OUVIDORIA · CONSENTIMENTO E PRIVACIDADE</div><h1>Como podemos encaminhar seu relato?</h1>
+        <BackButton onClick={goBack} /><div className="eyebrow">OUVIDORIA · CONSENTIMENTO E PRIVACIDADE</div><h1>{nps !== null && nps < 6 ? 'Sentimos que sua experiência poderia ter sido melhor. Quer contar à Ouvidoria como podemos melhorar?' : 'Como podemos encaminhar seu relato?'}</h1>
         <form className="contact-form" onSubmit={submitContact}>
           <p className="helper">Esta solicitacao e separada da pesquisa e inclui os dados que voce informar.</p>
           <label className="field-label" htmlFor="manifestation-type">Tipo de manifestacao</label>
@@ -277,7 +311,7 @@ export function PublicSurveyFlow({ onStaffLogin }: { onStaffLogin: () => void })
       </div>}
       {screen === 'done' && <div className="screen done-screen" ref={screenRef} tabIndex={-1} role="region" aria-label={screenLabels[screen]}>
         <div className="eyebrow">PESQUISA CONCLUIDA</div><div className="done-icon">✓</div><h1>Obrigado!</h1>
-        <div className="submission-summary"><strong>Resumo</strong><div><span>Perguntas</span><b>{survey?.questions.filter((question) => answers[question.id] !== undefined).length ?? 0} respondidas</b></div><div><span>Recomendacao</span><b>{nps === null ? 'Nao informada' : `${nps} de 10`}</b></div><div><span>Contato com a Ouvidoria</span><b>{contactSubmitted ? 'Solicitacao enviada' : wantsContact ? 'Nao enviada' : 'Nao solicitado'}</b></div></div>
+        <div className="submission-summary"><strong>Resumo</strong><div><span>Perguntas</span><b>{survey?.questions.filter((question) => answers[question.id] !== undefined).length ?? 0} respondidas</b></div><div><span>Recomendacao</span><b>{nps === null ? 'Nao informada' : `${nps} de 10`}</b></div><div><span>Contato com a Ouvidoria</span><b>{contactSubmitted ? previewMode ? 'Previa local (nao enviada)' : 'Solicitacao enviada' : wantsContact ? 'Nao enviada' : 'Nao solicitado'}</b></div></div>
         {contactProtocol && <p className="helper">Protocolo da Ouvidoria: <strong>{contactProtocol}</strong></p>}
         {wantsContact && !contactSubmitted && <p className="error-message" role="status">A solicitacao de contato nao foi enviada.</p>}
         <Button className="bottom-action" onClick={reset}>Encerrar</Button>

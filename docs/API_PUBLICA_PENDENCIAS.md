@@ -2,7 +2,7 @@
 
 ## Implementado em codigo
 
-- `GET /api/public/pesquisas/:codigo` devolve uma pesquisa ativa, o setor e as perguntas ativas.
+- `GET /api/public/pesquisas/:codigo` devolve uma pesquisa ativa, o setor e as perguntas ativas. O segmento aceita slug do setor (ex.: `recepcao`) ou UUID publico; slug ambiguo retorna `409`.
 - `POST /api/public/pesquisas/:codigo/respostas` recebe somente NPS e respostas por ID de pergunta; rejeita campos extras de identidade e contato.
 - O POST da pesquisa exige `Idempotency-Key` UUIDv4, guarda hashes, grava a resposta como anonima e nao persiste o IP bruto.
 - `POST /api/public/ouvidoria` recebe um tipo de manifestacao, relato, telefone, consentimento explicito e nome opcional. E uma gravacao separada da resposta anonima, sem associacao por `resposta_id`.

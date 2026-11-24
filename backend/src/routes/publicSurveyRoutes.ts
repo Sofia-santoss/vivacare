@@ -2,8 +2,7 @@ import { createHash, createHmac } from 'node:crypto';
 import { Router } from 'express';
 import { pool } from '../db/pool.js';
 import { enforcePublicIpLimit, PublicRateLimitError } from '../security/publicRateLimit.js';
-
-const codigoUuid = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
+import { filtroPesquisaPublica } from './publicSurveyCode.js';
 
 interface PesquisaPublicaRow {
   id: string;
@@ -23,11 +22,9 @@ export const publicSurveyRouter = Router();
 
 publicSurveyRouter.get('/pesquisas/:codigo', async (req, res) => {
   const { codigo } = req.params;
-  if (!codigoUuid.test(codigo)) {
-    return res.status(400).json({
-      code: 'INVALID_PUBLIC_CODE',
-      message: 'Codigo da pesquisa invalido.',
-    });
+  const filtroPublico = filtroPesquisaPublica(codigo);
+  if (!filtroPublico) {
+    return res.status(400).json({ code: 'INVALID_PUBLIC_CODE', message: 'URL publica da pesquisa invalida.' });
   }
 
   try {
@@ -52,10 +49,10 @@ publicSurveyRouter.get('/pesquisas/:codigo', async (req, res) => {
           ON h.id = s.hospital_id AND h.ativo = true
         LEFT JOIN public.perguntas q
           ON q.pesquisa_id = p.id AND q.ativa = true
-        WHERE p.codigo_publico = $1::uuid AND p.ativa = true
+        WHERE ${filtroPublico.condition} AND p.ativa = true
         ORDER BY q.ordem NULLS LAST, q.id NULLS LAST
       `,
-      [codigo],
+      [filtroPublico.value],
     );
 
     if (resultado.rows.length === 0) {
@@ -63,6 +60,10 @@ publicSurveyRouter.get('/pesquisas/:codigo', async (req, res) => {
         code: 'PUBLIC_SURVEY_NOT_FOUND',
         message: 'Pesquisa ativa nao encontrada para este codigo.',
       });
+    }
+
+    if (new Set(resultado.rows.map((linha) => linha.id)).size > 1) {
+      return res.status(409).json({ code: 'PUBLIC_SURVEY_AMBIGUOUS', message: 'Ha mais de uma pesquisa ativa para este setor.' });
     }
 
     const pesquisa = resultado.rows[0]!;
@@ -178,8 +179,9 @@ function valorColunas(pergunta: PerguntaRespostaRow, valor: string | number | bo
 
 publicSurveyRouter.post('/pesquisas/:codigo/respostas', async (req, res) => {
   const { codigo } = req.params;
-  if (!codigoUuid.test(codigo)) {
-    return res.status(400).json({ code: 'INVALID_PUBLIC_CODE', message: 'Codigo da pesquisa invalido.' });
+  const filtroPublico = filtroPesquisaPublica(codigo);
+  if (!filtroPublico) {
+    return res.status(400).json({ code: 'INVALID_PUBLIC_CODE', message: 'URL publica da pesquisa invalida.' });
   }
 
   const chaveCliente = req.get('Idempotency-Key') ?? '';
@@ -213,12 +215,13 @@ publicSurveyRouter.post('/pesquisas/:codigo/respostas', async (req, res) => {
          FROM public.pesquisas p
          JOIN public.setores s ON s.id=p.setor_id AND s.ativo=true
          JOIN public.hospitais h ON h.id=s.hospital_id AND h.ativo=true
-        WHERE p.codigo_publico=$1::uuid AND p.ativa=true
+        WHERE ${filtroPublico.condition} AND p.ativa=true
         FOR SHARE OF p`,
-      [codigo],
+      [filtroPublico.value],
     );
+    if (pesquisaResult.rows.length > 1) throw new ErroSubmissao(409, 'PUBLIC_SURVEY_AMBIGUOUS', 'Ha mais de uma pesquisa ativa para este setor.');
     const pesquisaId = pesquisaResult.rows[0]?.id;
-    if (!pesquisaId) throw new ErroSubmissao(404, 'PUBLIC_SURVEY_NOT_FOUND', 'Pesquisa ativa nao encontrada para este codigo.');
+    if (!pesquisaId) throw new ErroSubmissao(404, 'PUBLIC_SURVEY_NOT_FOUND', 'Pesquisa ativa nao encontrada para este setor.');
 
     await client.query('SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))', [pesquisaId, chaveHash]);
     const anterior = await client.query<{ payload_hash: string }>(

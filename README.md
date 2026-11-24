@@ -79,7 +79,7 @@ npm install
 npm run dev
 ```
 
-Abra o endereço mostrado pelo Vite, normalmente `http://localhost:5173`. A tela inicial pede o código público da pesquisa; ele também pode vir na URL como `?codigo=UUID`. O frontend usa `http://localhost:3000/api` por padrão. Para mudar a URL da API, copie `frontend/.env.example` para `frontend/.env` e ajuste `VITE_API_BASE_URL`.
+Para abrir uma prévia sem PostgreSQL ou QR Code, acesse `http://localhost:5173/?preview=1`. Para uma pesquisa real, use a URL do setor, por exemplo `http://localhost:5173/pesquisa/recepcao`; o backend resolve o setor para a pesquisa ativa correspondente. A URL também pode usar `?codigo=UUID`. O frontend usa `http://localhost:3000/api` por padrão. Para mudar a URL da API, copie `frontend/.env.example` para `frontend/.env` e ajuste `VITE_API_BASE_URL`.
 
 Os arquivos `.env` contêm configurações locais e não devem ser enviados ao GitHub.
 
@@ -89,6 +89,8 @@ Os arquivos `.env` contêm configurações locais e não devem ser enviados ao G
 |---|---|
 | `GET /health` | Verifica a conexão do backend com o PostgreSQL |
 | `GET /api/public/pesquisas/:codigo` | Carrega uma pesquisa ativa e suas perguntas |
+
+No link do paciente, o segmento pode ser o slug do setor, como ecepcao ou enfermagem. A API tambem aceita o UUID publico; se houver mais de uma pesquisa ativa com o mesmo slug, responde 409 para evitar misturar perguntas.
 | `POST /api/public/pesquisas/:codigo/respostas` | Envia NPS e respostas anônimas; exige o header `Idempotency-Key` com UUIDv4 |
 | `POST /api/public/ouvidoria` | Envia uma manifestação identificável separada; exige consentimento e o mesmo header de idempotência |
 

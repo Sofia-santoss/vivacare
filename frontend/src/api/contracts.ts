@@ -49,6 +49,19 @@ export interface ApiErrorBody {
   message: string;
 }
 
+export interface StaffUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  mustChangePassword: boolean;
+}
+
+export interface StaffSessionResult {
+  authenticated: boolean;
+  user: StaffUser | null;
+}
+
 export type ManifestationType = 'ELOGIO' | 'RECLAMACAO' | 'SUGESTAO';
 
 /** Dados identificaveis enviados apenas pelo fluxo separado da Ouvidoria. */

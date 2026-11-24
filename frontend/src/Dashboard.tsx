@@ -3,6 +3,7 @@ import { Ouvidoria } from './Ouvidoria';
 import { TvWall } from './TvWall';
 import { Button } from './components/Button';
 import type { FormEvent } from 'react';
+import type { StaffUser } from './api/contracts';
 
 const navigation = [
   { label: 'Visão geral', icon: '▦' },
@@ -16,9 +17,9 @@ const navigation = [
 ];
 type Section = (typeof navigation)[number]['label'];
 type DraftRecord = { id: number; name: string; details: string; status: string };
-type DashboardProps = { onBack: () => void };
+type DashboardProps = { onBack: () => void; user: StaffUser | null; previewMode: boolean };
 
-export function Dashboard({ onBack }: DashboardProps) {
+export function Dashboard({ onBack, user, previewMode }: DashboardProps) {
   const [active, setActive] = useState<Section>('Visão geral');
   const [period, setPeriod] = useState('Últimos 30 dias');
   const [sector, setSector] = useState('Todos os setores');
@@ -51,7 +52,7 @@ export function Dashboard({ onBack }: DashboardProps) {
   return <main className="management-page">
     <header className="management-topbar">
       <div className="brand"><span className="brand-mark" aria-hidden="true"><i /><i /><i /></span><span className="brand-name">FHDOD<small>Fundação Hospitalar<br />Dr. Oswaldo Diesel</small></span></div>
-      <div className="manager"><span className="manager-avatar">M</span><span><strong>Equipe VivaCare</strong><small>Prévia da interface</small></span><button aria-label="Sair do painel" onClick={onBack}>Sair</button></div>
+      <div className="manager"><span className="manager-avatar">{user?.name.slice(0, 1).toUpperCase() ?? 'M'}</span><span><strong>{user?.name ?? 'Equipe VivaCare'}</strong><small>{previewMode ? 'Prévia sem autenticação' : user?.email ?? 'Sessão autenticada'}</small></span><button aria-label="Sair do painel" onClick={onBack}>Sair</button></div>
     </header>
     <div className="management-layout">
       <aside className="sidebar"><div className="sidebar-title">VivaCare</div>
@@ -59,7 +60,7 @@ export function Dashboard({ onBack }: DashboardProps) {
         <button className="return-survey" onClick={onBack}>← Pesquisa do paciente</button>
       </aside>
       <section className="dashboard-content">
-        <div className="dashboard-heading"><div><div className="eyebrow">PAINEL DE GESTÃO</div><h1>{active}</h1><p>Visualização do Figma · dados reais dependem da API</p></div><div className="dashboard-actions"><span className="refresh-label">API não conectada</span><button className="tvwall-open-button" onClick={() => setShowTvWall(true)}>◱ TV Wall</button></div></div>
+        <div className="dashboard-heading"><div><div className="eyebrow">PAINEL DE GESTÃO</div><h1>{active}</h1><p>{previewMode ? 'Prévia visual · não consulta nem altera dados' : 'Sessão autenticada · dados reais ainda dependem das APIs do painel'}</p></div><div className="dashboard-actions"><span className="refresh-label">{previewMode ? 'Prévia local' : 'Sessão válida'}</span><button className="tvwall-open-button" onClick={() => setShowTvWall(true)}>◱ TV Wall</button></div></div>
         {notice && <p className="inline-notice" role="status">{notice}</p>}
         {active !== 'Ouvidoria' && active !== 'Configurações' && <div className="filter-bar">
           <label>Setor<select value={sector} onChange={(e) => setSector(e.target.value)}><option>Todos os setores</option><option>Recepção</option><option>Enfermagem</option><option>Pronto Atendimento</option><option>Internação</option><option>Farmácia</option></select></label>
