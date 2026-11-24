@@ -21,4 +21,4 @@ try {
   process.exitCode = 1;
 } finally {
   await pool.end();
-}
+}                                                                            

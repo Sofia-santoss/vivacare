@@ -2,6 +2,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
 
+vi.hoisted(() => {
+  process.env.NODE_ENV = 'test';
+  process.env.AUTH_CSRF_SECRET ??= 'app-test-csrf-secret-value-with-at-least-32-bytes';
+  process.env.AUTH_LOGIN_THROTTLE_SECRET ??= Buffer.alloc(32, 7).toString('base64url');
+  process.env.PUBLIC_SURVEY_FINGERPRINT_SECRET ??= Buffer.alloc(32, 8).toString('base64url');
+  process.env.AUTH_ALLOWED_ORIGINS ??= 'http://localhost:5173';
+});
+
 // O pool de verdade nunca é usado nestes testes: ele é substituído por uma versão falsa.
 vi.mock('./db/pool.js', () => ({
   pool: { query: vi.fn() },
@@ -43,5 +51,38 @@ describe('GET /health', () => {
 
     expect(JSON.stringify(resposta.body)).not.toContain('segredo');
     expect(JSON.stringify(resposta.body)).not.toContain('28P01');
+  });
+});
+
+describe('submissão pública de pesquisas', () => {
+  it('é pública e exige chave idempotente antes de acessar o banco', async () => {
+    queryFalso.mockReset();
+    const resposta = await request(app).post('/api/pesquisas/publicas/2fd921e4-8258-4ce0-a8d0-685d3915dc6c/respostas').send({ notaNps: 8, respostas: [] });
+    expect(resposta.status).toBe(400);
+    expect(resposta.body.code).toBe('IDEMPOTENCY_KEY_REQUIRED');
+    expect(queryFalso).not.toHaveBeenCalled();
+  });
+});
+
+describe('rotas protegidas de setores', () => {
+  it('monta GET /api/setores atrás da autenticação', async () => {
+    queryFalso.mockReset();
+    const resposta = await request(app).get('/api/setores');
+    expect(resposta.status).toBe(401);
+    expect(queryFalso).not.toHaveBeenCalled();
+  });
+
+  it('monta GET /api/equipes atrás da autenticação', async () => {
+    queryFalso.mockReset();
+    const resposta = await request(app).get('/api/equipes');
+    expect(resposta.status).toBe(401);
+    expect(queryFalso).not.toHaveBeenCalled();
+  });
+
+  it('monta GET /api/turnos atrás da autenticação', async () => {
+    queryFalso.mockReset();
+    const resposta = await request(app).get('/api/turnos');
+    expect(resposta.status).toBe(401);
+    expect(queryFalso).not.toHaveBeenCalled();
   });
 });

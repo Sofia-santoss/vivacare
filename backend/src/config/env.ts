@@ -1,3 +1,5 @@
+import { parseNodeEnv } from './nodeEnv.js';
+
 function obrigatoria(nome: string): string {
   const valor = process.env[nome];
   if (valor === undefined || valor.trim() === '') {
@@ -21,7 +23,7 @@ function numero(nome: string, padrao?: number): number {
 }
 
 export const env = {
-  nodeEnv: process.env.NODE_ENV ?? 'development',
+  nodeEnv: parseNodeEnv(process.env.NODE_ENV),
   port: numero('PORT', 3000),
   db: {
     host: obrigatoria('DB_HOST'),

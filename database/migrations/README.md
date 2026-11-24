@@ -47,6 +47,12 @@ O runner bloqueia hosts remotos, `NODE_ENV` ausente/inválido, produção e comb
 
 As migrations 002 a 006 estão preparadas, não aplicadas. A 004 é a primeira proposta de matriz e permanece imutável. `005_matriz_permissoes_aprovada` substitui associações apenas dos cinco perfis canônicos pela matriz aprovada em 12/11/2026; exige as tabelas/códigos preparados antes dela e não altera usuários. A 005 mantém a role da aplicação sem escrita no catálogo de permissões. `006_privilegios_modulo_usuarios` prepara privilégios de coluna/sequência exigidos pelo módulo, sem criar objetos. A lógica de negócio e autorização continua no backend. Nenhuma migration foi aplicada.
 
+## Migration 007: associações de usuários e setores
+
+`007_privilegios_usuario_setores.up.sql` concede somente `DELETE` em `public.usuario_setores` à role `vivacare_app`, para permitir remover uma associação sem excluir o usuário ou o setor. Os privilégios preexistentes de `SELECT`, `INSERT` e `UPDATE` são preservados. A migration não altera tabelas, dados, constraints, índices nem privilégios de outros objetos. O código local encontrado apenas consulta a tabela para carregar setores do principal; nenhum consumidor backend usa `UPDATE` nela.
+
+Esta migration é forward-only e não tem arquivo `.down.sql`. A reversão operacional do privilégio não apaga dados nem recria associações: primeiro interrompa e desabilite qualquer fluxo de remoção, confirme que nenhum consumidor legítimo depende de `DELETE`, e então avalie uma alteração de privilégios separada que revogue somente `DELETE`. Essa revogação impede novas remoções, mas não desfaz as remoções já realizadas; não deve ser feita enquanto uma operação legítima estiver em uso. Uma reversão futura deve ser registrada como nova migration, sem editar a 007 publicada.
+
 O módulo de usuários está implementado em `backend/src/usuarios`. Ele requer os códigos `users.*.hospital` da 005 e `eventos_auditoria` da 003. Convites usam `senha_hash` para persistir somente um marcador com hash e expiração do token; a senha é escolhida pelo usuário no endpoint público de aceite. O adaptador de envio de e-mail é uma dependência explícita ainda não conectada; sem ele a criação falha de forma transacional e a resposta não revela existência de e-mail. `USER_INVITE_URL_BASE` define o destino do link.
 
 ## Teste PostgreSQL descartável
