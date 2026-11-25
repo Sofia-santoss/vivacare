@@ -11,6 +11,7 @@
     "start": "node --env-file-if-exists=.env dist/index.js",
     "typecheck": "tsc --noEmit",
     "db:check": "tsx --env-file-if-exists=.env src/db/verificar.ts",
+    "admin:bootstrap-super-admin": "tsx --env-file-if-exists=.env scripts/bootstrapSuperAdmin.ts",
     "db:audit:public-surveys:readonly": "tsx --env-file-if-exists=.env src/db/auditPublicSurveysReadonly.ts",
     "db:migrate": "tsx --env-file-if-exists=.env src/db/migrator.ts",
     "db:cleanup:public-limits": "node dist/db/cleanupPublicSubmissionLimits.js",
@@ -26,6 +27,7 @@
   "license": "UNLICENSED",
   "dependencies": {
     "express": "5.3.0",
+    "nodemailer": "10.6.1",
     "pg": "8.23.1"
   },
   "devDependencies": {

@@ -21,6 +21,7 @@ import { SetoresService } from './setores/service.js';
 import { createAceitarConviteRouter, createUsuariosRouter } from './usuarios/routes.js';
 import { UsuariosRepository } from './usuarios/repository.js';
 import { createInviteDelivery } from './usuarios/delivery.js';
+import { createConfiguredSmtpTransport, parseSmtpConfiguration } from './usuarios/smtpConfig.js';
 import { EquipesRepository } from './equipes/repository.js';
 import { EquipesService } from './equipes/service.js';
 import { createEquipesRouter } from './equipes/routes.js';
@@ -67,7 +68,34 @@ if (!['http:', 'https:'].includes(parsedInviteUrl.protocol) || !allowedOrigins.h
     || (nodeEnv === 'production' && parsedInviteUrl.protocol !== 'https:')) {
   throw new Error('USER_INVITE_URL_BASE deve usar uma origem permitida e HTTPS em produção.');
 }
-const usuariosRepository = new UsuariosRepository(pool, inviteUrlBase, createInviteDelivery());
+function configuredInviteDelivery() {
+  const configuration = parseSmtpConfiguration();
+  if (configuration.status === 'absent') {
+    if (nodeEnv === 'production') console.warn('Envio de convites desativado: provedor SMTP ainda não configurado.');
+    return createInviteDelivery();
+  }
+  if (configuration.status === 'invalid') {
+    const issues = [
+      ...(configuration.missing.length ? [`ausentes: ${configuration.missing.join(', ')}`] : []),
+      ...(configuration.invalid.length ? [`inválidas: ${configuration.invalid.join(', ')}`] : []),
+    ].join('; ');
+    console.error(`Envio de convites desativado: configuração SMTP incompleta (${issues}).`);
+    return createInviteDelivery();
+  }
+
+  try {
+    const transport = createConfiguredSmtpTransport(configuration.settings);
+    return createInviteDelivery({
+      transport,
+      from: configuration.settings.from,
+    });
+  } catch {
+    console.error('Envio de convites desativado: não foi possível criar o transporte SMTP.');
+    return createInviteDelivery();
+  }
+}
+
+const usuariosRepository = new UsuariosRepository(pool, inviteUrlBase, configuredInviteDelivery());
 app.use('/api/usuarios/convites', createAceitarConviteRouter(usuariosRepository, allowedOrigins));
 assertProductionIpLimit(nodeEnv, authOptions.ipRateLimit !== null);
 app.use('/api/auth', createAuthRouter(authOptions));
