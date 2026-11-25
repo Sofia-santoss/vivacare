@@ -45,11 +45,15 @@ O runner bloqueia hosts remotos, `NODE_ENV` ausente/inválido, produção e comb
 
 `003_auditoria_administrativa.up.sql` cria uma trilha de eventos para operações administrativas. `vivacare_app` recebe apenas `INSERT` na tabela e `USAGE` na sequência. O down recusa remover uma tabela com registros, preservando histórico.
 
-As migrations 002 a 006 estão preparadas, não aplicadas. A 004 é a primeira proposta de matriz e permanece imutável. `005_matriz_permissoes_aprovada` substitui associações apenas dos cinco perfis canônicos pela matriz aprovada em 12/11/2026; exige as tabelas/códigos preparados antes dela e não altera usuários. A 005 mantém a role da aplicação sem escrita no catálogo de permissões. `006_privilegios_modulo_usuarios` prepara privilégios de coluna/sequência exigidos pelo módulo, sem criar objetos. A lógica de negócio e autorização continua no backend. Nenhuma migration foi aplicada.
+As migrations 002 a 008 estão preparadas para uma cadeia nova. As migrations 004/005 foram corrigidas para exigir os cinco códigos oficiais. Isso altera seus SHA-256 e o runner recusará qualquer ledger que contenha checksums anteriores. Antes de aplicar em qualquer ambiente, verifique o ledger com `status` e interrompa a implantação se 004 ou 005 já estiver registrada. Não edite o ledger manualmente e não presuma que ambientes remotos estejam vazios. A role da aplicação não recebe escrita no catálogo de permissões; as regras de autorização permanecem no backend. Não foi feita verificação nem alteração em bancos remotos.
 
 ## Migration 007: associações de usuários e setores
 
 `007_privilegios_usuario_setores.up.sql` concede somente `DELETE` em `public.usuario_setores` à role `vivacare_app`, para permitir remover uma associação sem excluir o usuário ou o setor. Os privilégios preexistentes de `SELECT`, `INSERT` e `UPDATE` são preservados. A migration não altera tabelas, dados, constraints, índices nem privilégios de outros objetos. O código local encontrado apenas consulta a tabela para carregar setores do principal; nenhum consumidor backend usa `UPDATE` nela.
+
+## Migration 008: escopo hospitalar da Ouvidoria
+
+`008_manifestacoes_hospital_scope.up.sql` adiciona o hospital obrigatório às manifestações. Linhas com setor usam o hospital do setor; linhas sem setor só são inferidas quando há exatamente um hospital. Se restarem linhas sem associação, a migration aborta sem remover dados. O endpoint público também exige um hospital único ou `PUBLIC_OMBUDSMAN_HOSPITAL_ID` válido quando houver mais de um. A proposta `database/proposals/008_escalas_pesquisas.up.sql` continua separada e não é descoberta pelo runner; seu número de rascunho deverá ser revisto antes de eventual promoção.
 
 Esta migration é forward-only e não tem arquivo `.down.sql`. A reversão operacional do privilégio não apaga dados nem recria associações: primeiro interrompa e desabilite qualquer fluxo de remoção, confirme que nenhum consumidor legítimo depende de `DELETE`, e então avalie uma alteração de privilégios separada que revogue somente `DELETE`. Essa revogação impede novas remoções, mas não desfaz as remoções já realizadas; não deve ser feita enquanto uma operação legítima estiver em uso. Uma reversão futura deve ser registrada como nova migration, sem editar a 007 publicada.
 

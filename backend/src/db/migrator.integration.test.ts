@@ -69,8 +69,9 @@ describe('migração de autenticação em PostgreSQL isolado', () => {
       "INSERT INTO public.hospitais (nome) VALUES ('Hospital sintético para integração') RETURNING id::text",
     )).rows[0]!.id;
     await pool.query(`INSERT INTO public.perfis (codigo,nome) VALUES
-      ('SUPER_ADMIN','Super Admin'), ('ADMIN_HOSPITAL','Admin do Hospital'),
-      ('GESTOR_SETOR','Gestor de Setor'), ('OUVIDORIA','Ouvidoria'), ('VISUALIZADOR','Visualizador')`);
+      ('SUPER_ADMIN','Administração geral do sistema'), ('ADMIN_SETOR','Administração de um ou mais setores'),
+      ('GESTAO','Acesso gerencial aos indicadores'), ('OUVIDORIA','Gestão de manifestações e protocolos'),
+      ('VISUALIZADOR','Consulta de informações autorizadas')`);
     await applyPendingMigrations(pool, resolve(root, 'database/migrations'), baselineFile);
   }, 30_000);
 
@@ -145,22 +146,30 @@ describe('migração de autenticação em PostgreSQL isolado', () => {
         GROUP BY p.codigo`,
     );
     const permissionsByProfile = new Map(matrix.rows.map((row) => [row.code, row]));
-    expect([...permissionsByProfile.keys()].sort()).toEqual(['ADMIN_HOSPITAL', 'GESTOR_SETOR', 'OUVIDORIA', 'SUPER_ADMIN', 'VISUALIZADOR']);
+    expect([...permissionsByProfile.keys()].sort()).toEqual(['ADMIN_SETOR', 'GESTAO', 'OUVIDORIA', 'SUPER_ADMIN', 'VISUALIZADOR']);
     const codes = (profile: string) => permissionsByProfile.get(profile)?.permissions ?? [];
-    expect(codes('ADMIN_HOSPITAL')).toContain('sectors.scope.hospital');
-    expect(codes('ADMIN_HOSPITAL')).toContain('questions.create.hospital');
-    expect(codes('ADMIN_HOSPITAL')).toContain('manifestations.read.hospital');
-    expect(codes('ADMIN_HOSPITAL')).not.toContain('manifestations.complete.hospital');
-    expect(codes('GESTOR_SETOR')).toContain('questions.update.assigned');
-    expect(codes('GESTOR_SETOR')).toContain('surveys.indicators.read.assigned');
-    expect(codes('GESTOR_SETOR')).not.toContain('teams.create.assigned');
-    expect(codes('GESTOR_SETOR')).not.toContain('schedules.create.assigned');
-    expect(codes('GESTOR_SETOR')).not.toContain('sectors.scope.hospital');
+    expect(codes('SUPER_ADMIN')).toContain('sectors.scope.hospital');
+    expect(codes('SUPER_ADMIN')).toContain('questions.create.hospital');
+    expect(codes('SUPER_ADMIN')).toContain('manifestations.read.hospital');
+    expect(codes('ADMIN_SETOR')).toContain('questions.update.assigned');
+    expect(codes('ADMIN_SETOR')).toContain('surveys.indicators.read.assigned');
+    expect(codes('ADMIN_SETOR')).toContain('teams.manage.assigned');
+    expect(codes('ADMIN_SETOR')).toContain('schedules.manage.assigned');
+    expect(codes('ADMIN_SETOR')).not.toContain('teams.create.hospital');
+    expect(codes('ADMIN_SETOR')).not.toContain('schedules.create.hospital');
+    expect(codes('ADMIN_SETOR')).not.toContain('sectors.scope.hospital');
+    expect(codes('GESTAO')).toEqual(['surveys.indicators.read.hospital']);
     expect(codes('OUVIDORIA')).toContain('manifestations.log_attempt.hospital');
     expect(codes('OUVIDORIA')).not.toContain('surveys.indicators.read.hospital');
     expect(codes('VISUALIZADOR')).toEqual(['surveys.indicators.read.hospital']);
     expect(codes('SUPER_ADMIN')).toContain('permissions.manage');
     expect(codes('SUPER_ADMIN')).toContain('manifestations.complete.hospital');
+    expect(codes('SUPER_ADMIN')).toContain('audit.read.manifestations');
+    const manifestationTenant = await pool.query<{ nullable: string }>(
+      `SELECT is_nullable AS nullable FROM information_schema.columns
+        WHERE table_schema='public' AND table_name='manifestacoes' AND column_name='hospital_id'`,
+    );
+    expect(manifestationTenant.rows[0]?.nullable).toBe('NO');
   });
 
   it('persiste sessão sintética com hash e não exige dados reais', async () => {

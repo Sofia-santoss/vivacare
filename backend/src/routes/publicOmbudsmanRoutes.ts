@@ -80,6 +80,18 @@ export function createPublicOmbudsmanRouter(pool: Pool): Router {
   try {
     await client.query('BEGIN');
     await client.query('SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))', ['ouvidoria', keyHash]);
+    const configuredHospitalId = process.env.PUBLIC_OMBUDSMAN_HOSPITAL_ID?.trim() || null;
+    if (configuredHospitalId && !/^[1-9]\d*$/.test(configuredHospitalId)) {
+      throw new Error('PUBLIC_OMBUDSMAN_HOSPITAL_ID invalido.');
+    }
+    const hospital = await client.query<{ id: string }>(
+      `SELECT id::text FROM public.hospitais
+        WHERE ($1::bigint IS NULL OR id=$1::bigint)
+        ORDER BY id LIMIT 2`,
+      [configuredHospitalId],
+    );
+    if (hospital.rows.length !== 1) throw new Error('Hospital alvo ausente ou ambiguo para a Ouvidoria publica.');
+    const hospitalId = hospital.rows[0]!.id;
     const existing = await client.query<{
       type: OmbudsmanBody['type']; name: string | null; phone: string | null; statement: string;
       consent: boolean; anonymous: boolean;
@@ -102,9 +114,9 @@ export function createPublicOmbudsmanRouter(pool: Pool): Router {
 
     await client.query(
       `INSERT INTO public.manifestacoes
-         (protocolo, tipo, anonima, nome_contato, telefone_contato, email_contato, autoriza_contato, relato)
-       VALUES ($1, $2, false, $3, $4, NULL, true, $5)`,
-      [protocol, body.type, body.name, body.phone, body.statement],
+         (hospital_id, protocolo, tipo, anonima, nome_contato, telefone_contato, email_contato, autoriza_contato, relato)
+       VALUES ($1, $2, $3, false, $4, $5, NULL, true, $6)`,
+      [hospitalId, protocol, body.type, body.name, body.phone, body.statement],
     );
     await client.query('COMMIT');
     return res.status(201).json({ status: 'submitted', protocol });

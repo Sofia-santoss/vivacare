@@ -8,21 +8,22 @@ function mapear(row: EquipeRow): Equipe {
 const projection = 'e.id::text, e.setor_id::text, s.nome AS setor_nome, e.nome, e.descricao, e.ativa, e.criado_em';
 
 export interface RepositorioEquipes {
-  listar(hospitalId: string, filtros: FiltrosEquipe, paginacao: PaginacaoEquipes): Promise<ResultadoListaEquipes>;
-  buscar(hospitalId: string, id: string): Promise<Equipe | null>;
-  criar(hospitalId: string, actorId: string, input: CriarEquipe): Promise<Equipe | null>;
-  atualizar(hospitalId: string, actorId: string, id: string, input: AtualizarEquipe): Promise<Equipe | null>;
-  alterarStatus(hospitalId: string, actorId: string, id: string, ativa: boolean): Promise<Equipe | null>;
+  listar(hospitalId: string, filtros: FiltrosEquipe, paginacao: PaginacaoEquipes, sectorIds?: string[] | null): Promise<ResultadoListaEquipes>;
+  buscar(hospitalId: string, id: string, sectorIds?: string[] | null): Promise<Equipe | null>;
+  criar(hospitalId: string, actorId: string, input: CriarEquipe, sectorIds?: string[] | null): Promise<Equipe | null>;
+  atualizar(hospitalId: string, actorId: string, id: string, input: AtualizarEquipe, sectorIds?: string[] | null): Promise<Equipe | null>;
+  alterarStatus(hospitalId: string, actorId: string, id: string, ativa: boolean, sectorIds?: string[] | null): Promise<Equipe | null>;
 }
 
 export class EquipesRepository implements RepositorioEquipes {
   constructor(private readonly pool: Pool) {}
 
-  async listar(hospitalId: string, filtros: FiltrosEquipe, paginacao: PaginacaoEquipes): Promise<ResultadoListaEquipes> {
+  async listar(hospitalId: string, filtros: FiltrosEquipe, paginacao: PaginacaoEquipes, sectorIds?: string[] | null): Promise<ResultadoListaEquipes> {
     const offset = (paginacao.page - 1) * paginacao.pageSize;
-    const values = [hospitalId, filtros.setorId ?? null, filtros.nome ?? null, filtros.ativa ?? null];
+    const values = [hospitalId, filtros.setorId ?? null, filtros.nome ?? null, filtros.ativa ?? null, sectorIds ?? null];
     const where = `s.hospital_id=$1 AND ($2::bigint IS NULL OR s.id=$2)
-      AND ($3::text IS NULL OR e.nome ILIKE '%' || $3 || '%') AND ($4::boolean IS NULL OR e.ativa=$4)`;
+      AND ($3::text IS NULL OR e.nome ILIKE '%' || $3 || '%') AND ($4::boolean IS NULL OR e.ativa=$4)
+      AND ($5::bigint[] IS NULL OR s.id=ANY($5::bigint[]))`;
     const count = await this.pool.query<{ total: string }>(
       `SELECT count(*)::text AS total FROM public.equipes e JOIN public.setores s ON s.id=e.setor_id WHERE ${where}`,
       values,
@@ -35,21 +36,21 @@ export class EquipesRepository implements RepositorioEquipes {
     return { data: rows.rows.map(mapear), total: Number(count.rows[0]?.total ?? 0), page: paginacao.page, pageSize: paginacao.pageSize };
   }
 
-  async buscar(hospitalId: string, id: string): Promise<Equipe | null> {
+  async buscar(hospitalId: string, id: string, sectorIds?: string[] | null): Promise<Equipe | null> {
     const result = await this.pool.query<EquipeRow>(
       `SELECT ${projection} FROM public.equipes e JOIN public.setores s ON s.id=e.setor_id
-        WHERE e.id=$1 AND s.hospital_id=$2 LIMIT 1`, [id, hospitalId],
+        WHERE e.id=$1 AND s.hospital_id=$2 AND ($3::bigint[] IS NULL OR s.id=ANY($3::bigint[])) LIMIT 1`, [id, hospitalId, sectorIds ?? null],
     );
     return result.rows[0] ? mapear(result.rows[0]) : null;
   }
 
-  async criar(hospitalId: string, actorId: string, input: CriarEquipe): Promise<Equipe | null> {
+  async criar(hospitalId: string, actorId: string, input: CriarEquipe, sectorIds?: string[] | null): Promise<Equipe | null> {
     const result = await this.pool.query<EquipeRow>(
       `WITH inserida AS (
          INSERT INTO public.equipes (setor_id,nome,descricao)
          SELECT s.id,$4,$5 FROM public.setores s
            JOIN public.usuarios ator ON ator.id=$2 AND ator.hospital_id=s.hospital_id AND ator.ativo=true
-          WHERE s.id=$3 AND s.hospital_id=$1
+          WHERE s.id=$3 AND s.hospital_id=$1 AND ($6::bigint[] IS NULL OR s.id=ANY($6::bigint[]))
          RETURNING id,setor_id,nome,descricao,ativa,criado_em
        ), auditoria AS (
          INSERT INTO public.eventos_auditoria (ator_usuario_id,hospital_id,acao,entidade,entidade_id,detalhes)
@@ -58,12 +59,12 @@ export class EquipesRepository implements RepositorioEquipes {
        )
        SELECT i.id::text,i.setor_id::text,s.nome AS setor_nome,i.nome,i.descricao,i.ativa,i.criado_em
          FROM inserida i JOIN public.setores s ON s.id=i.setor_id CROSS JOIN auditoria`,
-      [hospitalId, actorId, input.setorId, input.nome, input.descricao],
+      [hospitalId, actorId, input.setorId, input.nome, input.descricao, sectorIds ?? null],
     );
     return result.rows[0] ? mapear(result.rows[0]) : null;
   }
 
-  async atualizar(hospitalId: string, actorId: string, id: string, input: AtualizarEquipe): Promise<Equipe | null> {
+  async atualizar(hospitalId: string, actorId: string, id: string, input: AtualizarEquipe, sectorIds?: string[] | null): Promise<Equipe | null> {
     const result = await this.pool.query<EquipeRow>(
       `WITH atualizada AS (
          UPDATE public.equipes e SET setor_id=COALESCE($4::bigint,e.setor_id),
@@ -71,6 +72,7 @@ export class EquipesRepository implements RepositorioEquipes {
           FROM public.setores setor_atual, public.setores setor_destino
          WHERE e.id=$1 AND setor_atual.id=e.setor_id AND setor_atual.hospital_id=$2
            AND setor_destino.id=COALESCE($4::bigint,e.setor_id) AND setor_destino.hospital_id=$2
+           AND ($8::bigint[] IS NULL OR (setor_atual.id=ANY($8::bigint[]) AND setor_destino.id=ANY($8::bigint[])))
            AND EXISTS (SELECT 1 FROM public.usuarios ator WHERE ator.id=$3 AND ator.hospital_id=$2 AND ator.ativo=true)
          RETURNING e.id,e.setor_id,e.nome,e.descricao,e.ativa,e.criado_em
        ), auditoria AS (
@@ -81,17 +83,17 @@ export class EquipesRepository implements RepositorioEquipes {
        )
        SELECT a.id::text,a.setor_id::text,s.nome AS setor_nome,a.nome,a.descricao,a.ativa,a.criado_em
          FROM atualizada a JOIN public.setores s ON s.id=a.setor_id CROSS JOIN auditoria`,
-      [id, hospitalId, actorId, input.setorId ?? null, input.nome ?? null, Object.hasOwn(input, 'descricao'), input.descricao ?? null],
+      [id, hospitalId, actorId, input.setorId ?? null, input.nome ?? null, Object.hasOwn(input, 'descricao'), input.descricao ?? null, sectorIds ?? null],
     );
     return result.rows[0] ? mapear(result.rows[0]) : null;
   }
 
-  async alterarStatus(hospitalId: string, actorId: string, id: string, ativa: boolean): Promise<Equipe | null> {
+  async alterarStatus(hospitalId: string, actorId: string, id: string, ativa: boolean, sectorIds?: string[] | null): Promise<Equipe | null> {
     const result = await this.pool.query<EquipeRow>(
       `WITH atualizada AS (
          UPDATE public.equipes e SET ativa=$4
           FROM public.setores s
-         WHERE e.id=$1 AND s.id=e.setor_id AND s.hospital_id=$2
+         WHERE e.id=$1 AND s.id=e.setor_id AND s.hospital_id=$2 AND ($5::bigint[] IS NULL OR s.id=ANY($5::bigint[]))
            AND EXISTS (SELECT 1 FROM public.usuarios ator WHERE ator.id=$3 AND ator.hospital_id=$2 AND ator.ativo=true)
          RETURNING e.id,e.setor_id,e.nome,e.descricao,e.ativa,e.criado_em
        ), auditoria AS (
@@ -101,7 +103,7 @@ export class EquipesRepository implements RepositorioEquipes {
        )
        SELECT a.id::text,a.setor_id::text,s.nome AS setor_nome,a.nome,a.descricao,a.ativa,a.criado_em
          FROM atualizada a JOIN public.setores s ON s.id=a.setor_id CROSS JOIN auditoria`,
-      [id, hospitalId, actorId, ativa],
+      [id, hospitalId, actorId, ativa, sectorIds ?? null],
     );
     return result.rows[0] ? mapear(result.rows[0]) : null;
   }

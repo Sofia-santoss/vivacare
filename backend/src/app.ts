@@ -2,6 +2,7 @@ import express from 'express';
 import { pool } from './db/pool.js';
 import { publicSurveyRouter } from './routes/publicSurveyRoutes.js';
 import { createPublicOmbudsmanRouter } from './routes/publicOmbudsmanRoutes.js';
+import { createOmbudsmanManagementRouter } from './routes/ombudsmanManagementRoutes.js';
 import { parseHmacSecret, parseLoginThrottleSecret } from './auth/loginAttempts.js';
 import { parseIpRateLimitConfig } from './auth/ipRateLimit.js';
 import { parsePublicSubmissionRateLimit } from './pesquisas/publicSubmissionRateLimitConfig.js';
@@ -32,6 +33,7 @@ import { EscalasRepository } from './escalas/repository.js';
 import { EscalasService } from './escalas/service.js';
 import { createEscalasRouter } from './escalas/routes.js';
 import { createSubmissaoPesquisaRouter } from './pesquisas/submissaoRoutes.js';
+import { createIndicadoresRouter } from './pesquisas/indicadoresRoutes.js';
 import { createPublicIpRateLimit, createPublicSubmissionRateLimit } from './pesquisas/publicSubmissionRateLimit.js';
 
 export const app = express();
@@ -108,6 +110,8 @@ protectedApi.use('/equipes', createEquipesRouter(pool, new EquipesService(new Eq
 protectedApi.use('/turnos', createTurnosRouter(pool, new TurnosService(new TurnosRepository(pool))));
 protectedApi.use('/escalas', createEscalasRouter(pool, new EscalasService(new EscalasRepository(pool))));
 protectedApi.use('/usuarios', createUsuariosRouter(pool, usuariosRepository));
+protectedApi.use('/indicadores', createIndicadoresRouter(pool));
+protectedApi.use('/ouvidoria', createOmbudsmanManagementRouter(pool));
 app.use('/api', createAuthenticationMiddleware(authOptions), createCsrfProtection(authOptions), protectedApi);
 app.get('/health', async (_req, res) => {
   try {

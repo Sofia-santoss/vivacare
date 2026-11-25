@@ -10,6 +10,8 @@ describe('matriz de teto dos perfis oficiais', () => {
 
   it('limita ADMIN_SETOR a recursos associados e nega escopo hospitalar/administração de usuários', () => {
     expect(profileMayUsePermission('ADMIN_SETOR', PERMISSIONS.sectorsUpdate)).toBe(true);
+    expect(profileMayUsePermission('ADMIN_SETOR', PERMISSIONS.teamsManageAssigned)).toBe(true);
+    expect(profileMayUsePermission('ADMIN_SETOR', PERMISSIONS.schedulesManageAssigned)).toBe(true);
     expect(profileMayUsePermission('ADMIN_SETOR', PERMISSIONS.questionsUpdateAssigned)).toBe(true);
     expect(profileMayUsePermission('ADMIN_SETOR', PERMISSIONS.indicatorsReadAssigned)).toBe(true);
     expect(profileMayUsePermission('ADMIN_SETOR', PERMISSIONS.sectorsHospitalScope)).toBe(false);

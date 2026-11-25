@@ -1,10 +1,11 @@
-﻿import { useState } from 'react';
-import { Ouvidoria } from './Ouvidoria';
+﻿import { useEffect, useState } from 'react';
+import { getIndicators } from './api/client';
+import { OmbudsmanWorkspace } from './OmbudsmanWorkspace';
 import { TvWall } from './TvWall';
 import { Button } from './components/Button';
 import { ManagementApiList } from './components/ManagementApiList';
 import type { FormEvent } from 'react';
-import type { StaffUser } from './api/contracts';
+import type { IndicatorRow, StaffUser } from './api/contracts';
 
 const navigation = [
   { label: 'Visão geral', icon: '▦' },
@@ -24,7 +25,15 @@ type DraftRecord = { id: number; name: string; details: string; status: string }
 type DashboardProps = { onBack: () => void; user: StaffUser | null; previewMode: boolean };
 
 export function Dashboard({ onBack, user, previewMode }: DashboardProps) {
-  const [active, setActive] = useState<Section>('Visão geral');
+  const roleSections: Record<string, Section[]> = {
+    ADMIN_SETOR: ['Indicadores', 'Setores', 'Equipes', 'Escalas'],
+    GESTAO: ['Indicadores'], OUVIDORIA: ['Ouvidoria'], VISUALIZADOR: ['Indicadores'],
+  };
+  const allowedNavigation = previewMode || !user || user.role === 'SUPER_ADMIN'
+    ? navigation : navigation.filter(({ label }) => (roleSections[user.role] ?? ['Indicadores']).includes(label));
+  const initialSection = previewMode || !user || user.role === 'SUPER_ADMIN' ? 'Visão geral'
+    : user.role === 'OUVIDORIA' ? 'Ouvidoria' : 'Indicadores';
+  const [active, setActive] = useState<Section>(initialSection);
   const [period, setPeriod] = useState('Últimos 30 dias');
   const [sector, setSector] = useState('Todos os setores');
   const [shift, setShift] = useState('Todos os turnos');
@@ -62,19 +71,19 @@ export function Dashboard({ onBack, user, previewMode }: DashboardProps) {
     </header>
     <div className="management-layout">
       <aside className="sidebar"><div className="sidebar-title">VivaCare</div>
-        <nav aria-label="Navegação da gestão">{navigation.map(({ label, icon }) => <button key={label} className={active === label ? 'active' : ''} aria-current={active === label ? 'page' : undefined} onClick={() => { setActive(label); setNotice(''); }}><span aria-hidden="true">{icon}</span>{label}</button>)}</nav>
+        <nav aria-label="Navegação da gestão">{allowedNavigation.map(({ label, icon }) => <button key={label} className={active === label ? 'active' : ''} aria-current={active === label ? 'page' : undefined} onClick={() => { setActive(label); setNotice(''); }}><span aria-hidden="true">{icon}</span>{label}</button>)}</nav>
         <button className="return-survey" onClick={onBack}>← Pesquisa do paciente</button>
       </aside>
       <section className="dashboard-content">
         <div className="dashboard-heading"><div><div className="eyebrow">PAINEL DE GESTÃO</div><h1>{active}</h1><p>{previewMode ? 'Prévia visual · não consulta nem altera dados' : 'Sessão autenticada · dados reais ainda dependem das APIs do painel'}</p></div><div className="dashboard-actions"><span className="refresh-label">{previewMode ? 'Prévia local' : 'Sessão válida'}</span><button className="tvwall-open-button" onClick={() => setShowTvWall(true)}>◱ TV Wall</button></div></div>
         {notice && <p className="inline-notice" role="status">{notice}</p>}
-        {!isApiSection && active !== 'Ouvidoria' && active !== 'Configurações' && <div className="filter-bar">
+        {!isApiSection && active !== 'Ouvidoria' && active !== 'Indicadores' && active !== 'Configurações' && <div className="filter-bar">
           <label>Setor<select value={sector} onChange={(e) => setSector(e.target.value)}><option>Todos os setores</option><option>Recepção</option><option>Enfermagem</option><option>Pronto Atendimento</option><option>Internação</option><option>Farmácia</option></select></label>
           <label>Período<select value={period} onChange={(e) => setPeriod(e.target.value)}><option>Últimos 30 dias</option><option>Últimos 7 dias</option><option>Este mês</option><option>Este ano</option></select></label>
           <label>Turno<select value={shift} onChange={(e) => setShift(e.target.value)}><option>Todos os turnos</option><option>Manhã</option><option>Tarde</option><option>Noite</option></select></label>
           <Button className="filter-button" onClick={() => { setApplied(true); setNotice('Filtros prontos. Os resultados aparecerão quando a API estiver conectada.'); }}>Aplicar filtros</Button>
         </div>}
-        {active === 'Ouvidoria' ? <Ouvidoria /> : active === 'Visão geral' ? <Overview period={period} sector={sector} shift={shift} applied={applied} /> : active === 'Indicadores' ? <Indicators period={period} /> : !previewMode && isApiSection ? <ManagementApiList section={active as (typeof apiSections)[number]} /> : active === 'Pesquisas' || active === 'Perguntas' || isApiSection ? <ListSection title={active === 'Perguntas' ? 'Perguntas do setor' : active === 'Usuários' ? 'Usuários e permissões' : active === 'Setores' || active === 'Equipes' || active === 'Turnos' || active === 'Escalas' ? active : 'Pesquisas'} description={active === 'Perguntas' ? 'Gerencie perguntas e sua obrigatoriedade na pesquisa.' : active === 'Usuários' ? 'Acesso administrativo por perfil e setor.' : 'Prévia local da área de gestão.'} records={drafts[active] ?? []} onCreate={() => setForm(active)} onRemove={(id) => removeDraft(active, id)} /> : <Settings onSave={() => setNotice('Preferências atualizadas apenas nesta visualização. A API ainda não está conectada.')} />}
+        {active === 'Ouvidoria' ? <OmbudsmanWorkspace previewMode={previewMode} /> : active === 'Visão geral' ? <Overview period={period} sector={sector} shift={shift} applied={applied} /> : active === 'Indicadores' ? <Indicators previewMode={previewMode} /> : !previewMode && isApiSection ? <ManagementApiList section={active as (typeof apiSections)[number]} /> : active === 'Pesquisas' || active === 'Perguntas' || isApiSection ? <ListSection title={active === 'Perguntas' ? 'Perguntas do setor' : active === 'Usuários' ? 'Usuários e permissões' : active === 'Setores' || active === 'Equipes' || active === 'Turnos' || active === 'Escalas' ? active : 'Pesquisas'} description={active === 'Perguntas' ? 'Gerencie perguntas e sua obrigatoriedade na pesquisa.' : active === 'Usuários' ? 'Acesso administrativo por perfil e setor.' : 'Prévia local da área de gestão.'} records={drafts[active] ?? []} onCreate={() => setForm(active)} onRemove={(id) => removeDraft(active, id)} /> : <Settings onSave={() => setNotice('Preferências atualizadas apenas nesta visualização. A API ainda não está conectada.')} />}
         {form && <FormDialog section={form} onClose={() => setForm(null)} onSubmit={saveDraft} />}
       </section>
     </div>
@@ -92,8 +101,40 @@ function Overview({ period, sector, shift, applied }: { period: string; sector: 
   </>;
 }
 
-function Indicators({ period }: { period: string }) {
-  return <div className="indicator-grid"><Chart title="Evolução do NPS" subtitle={period} kind="line" /><Chart title="Distribuição de respostas" subtitle="Promotores, neutros e detratores" kind="distribution" /><Chart title="NPS por setor" subtitle="Comparativo do período" kind="bars" /><Chart title="Volume por período" subtitle="Respostas recebidas" kind="line" /></div>;
+function Indicators({ previewMode }: { previewMode: boolean }) {
+  const [rows, setRows] = useState<IndicatorRow[]>([]);
+  const [loading, setLoading] = useState(!previewMode);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    if (previewMode) return;
+    let active = true;
+    setLoading(true);
+    void getIndicators().then((result) => { if (active) setRows(result.data); })
+      .catch((cause: unknown) => { if (active) setError(cause instanceof Error ? cause.message : 'Não foi possível carregar os indicadores.'); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [previewMode]);
+
+  if (previewMode) return <div className="dashboard-card empty-period"><strong>Prévia sem dados</strong><p>Entre com uma conta autorizada para consultar os indicadores.</p></div>;
+  const totals = rows.reduce((sum, row) => ({
+    responses: sum.responses + Number(row.total_respostas),
+    promoters: sum.promoters + Number(row.total_promotores),
+    detractors: sum.detractors + Number(row.total_detratores),
+  }), { responses: 0, promoters: 0, detractors: 0 });
+  const nps = totals.responses ? Math.round(((totals.promoters - totals.detractors) / totals.responses) * 10000) / 100 : null;
+  return <section className="management-list-section">
+    <div className="metric-grid">
+      <article className="dashboard-card metric-card"><div className="metric-top"><span>Respostas</span><span className="metric-icon">▣</span></div><strong>{totals.responses}</strong><small>no recorte carregado</small></article>
+      <article className="dashboard-card metric-card"><div className="metric-top"><span>NPS agregado</span><span className="metric-icon">♡</span></div><strong>{nps === null ? '—' : nps}</strong><small>calculado pelas respostas</small></article>
+      <article className="dashboard-card metric-card"><div className="metric-top"><span>Setores</span><span className="metric-icon">⌂</span></div><strong>{new Set(rows.map((row) => row.setor_id)).size}</strong><small>com respostas no recorte</small></article>
+    </div>
+    {error && <p className="inline-notice" role="alert">{error}</p>}
+    <div className="ombudsman-summary">{loading ? 'Carregando indicadores…' : `${rows.length} agrupamento(s) recebidos da API`}</div>
+    <div className="ombudsman-table-wrap"><table className="ombudsman-table"><thead><tr><th>Data</th><th>Setor</th><th>Turno</th><th>Respostas</th><th>Promotores</th><th>Neutros</th><th>Detratores</th><th>NPS</th></tr></thead>
+      <tbody>{rows.map((row, index) => <tr key={`${row.setor_id}-${row.data_resposta}-${row.turno_id ?? 'sem-turno'}-${index}`}><td>{row.data_resposta}</td><td>{row.setor}</td><td>{row.turno ?? '—'}</td><td>{row.total_respostas}</td><td>{row.total_promotores}</td><td>{row.total_neutros}</td><td>{row.total_detratores}</td><td>{row.nps}</td></tr>)}
+        {!rows.length && !loading && <tr><td colSpan={8}><div className="ombudsman-empty"><strong>Sem indicadores para exibir</strong></div></td></tr>}</tbody>
+    </table></div>
+  </section>;
 }
 
 function Chart({ title, subtitle, kind }: { title: string; subtitle: string; kind: 'line' | 'bars' | 'distribution' }) {

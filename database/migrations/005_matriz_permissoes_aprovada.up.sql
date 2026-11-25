@@ -1,9 +1,10 @@
--- Matriz aprovada em 2026-11-12. Nao altera migrations anteriores.
+-- Matriz oficial dos cinco perfis VivaCare. Esta migration so deve ser adotada
+-- em uma cadeia ainda nao aplicada; consulte migrations/README.md sobre checksums.
 -- Substitui as associacoes provisionadas pela migration 004.
 DO $$
 DECLARE expected_profile text;
 BEGIN
-  FOREACH expected_profile IN ARRAY ARRAY['SUPER_ADMIN','ADMIN_HOSPITAL','GESTOR_SETOR','OUVIDORIA','VISUALIZADOR'] LOOP
+  FOREACH expected_profile IN ARRAY ARRAY['SUPER_ADMIN','ADMIN_SETOR','GESTAO','OUVIDORIA','VISUALIZADOR'] LOOP
     IF NOT EXISTS (SELECT 1 FROM public.perfis WHERE codigo = expected_profile) THEN
       RAISE EXCEPTION 'Migration 005 requer perfil existente %', expected_profile;
     END IF;
@@ -36,7 +37,7 @@ ON CONFLICT (codigo) DO UPDATE SET descricao = EXCLUDED.descricao;
 
 DELETE FROM public.perfis_permissoes pp USING public.perfis p
  WHERE pp.perfil_id = p.id
-   AND p.codigo IN ('SUPER_ADMIN','ADMIN_HOSPITAL','GESTOR_SETOR','OUVIDORIA','VISUALIZADOR');
+   AND p.codigo IN ('SUPER_ADMIN','ADMIN_SETOR','GESTAO','OUVIDORIA','VISUALIZADOR');
 WITH matrix(profile_code, permission_code) AS (VALUES
  ('SUPER_ADMIN','users.read.hospital'), ('SUPER_ADMIN','users.create.hospital'), ('SUPER_ADMIN','users.update.hospital'), ('SUPER_ADMIN','users.deactivate.hospital'), ('SUPER_ADMIN','users.change_profile.hospital'),
  ('SUPER_ADMIN','profiles.manage'), ('SUPER_ADMIN','permissions.manage'),
@@ -46,26 +47,13 @@ WITH matrix(profile_code, permission_code) AS (VALUES
  ('SUPER_ADMIN','schedules.read.hospital'), ('SUPER_ADMIN','schedules.create.hospital'), ('SUPER_ADMIN','schedules.update.hospital'), ('SUPER_ADMIN','schedules.cancel.hospital'),
  ('SUPER_ADMIN','questions.read.hospital'), ('SUPER_ADMIN','questions.create.hospital'), ('SUPER_ADMIN','questions.update.hospital'), ('SUPER_ADMIN','questions.deactivate.hospital'),
  ('SUPER_ADMIN','surveys.settings.manage.hospital'), ('SUPER_ADMIN','surveys.indicators.read.hospital'),
- ('SUPER_ADMIN','manifestations.read.hospital'), ('SUPER_ADMIN','manifestations.classify.hospital'), ('SUPER_ADMIN','manifestations.update_status.hospital'), ('SUPER_ADMIN','manifestations.log_attempt.hospital'), ('SUPER_ADMIN','manifestations.complete.hospital'), ('SUPER_ADMIN','audit.read.hospital'),
- ('ADMIN_HOSPITAL','users.read.hospital'), ('ADMIN_HOSPITAL','users.create.hospital'), ('ADMIN_HOSPITAL','users.update.hospital'), ('ADMIN_HOSPITAL','users.deactivate.hospital'), ('ADMIN_HOSPITAL','users.change_profile.hospital'),
- ('ADMIN_HOSPITAL','sectors.list'), ('ADMIN_HOSPITAL','sectors.read'), ('ADMIN_HOSPITAL','sectors.create'), ('ADMIN_HOSPITAL','sectors.update'), ('ADMIN_HOSPITAL','sectors.change_status'), ('ADMIN_HOSPITAL','sectors.scope.hospital'),
- ('ADMIN_HOSPITAL','teams.read.hospital'), ('ADMIN_HOSPITAL','teams.create.hospital'), ('ADMIN_HOSPITAL','teams.update.hospital'), ('ADMIN_HOSPITAL','teams.deactivate.hospital'),
- ('ADMIN_HOSPITAL','shifts.read.hospital'), ('ADMIN_HOSPITAL','shifts.create.hospital'), ('ADMIN_HOSPITAL','shifts.update.hospital'), ('ADMIN_HOSPITAL','shifts.deactivate.hospital'),
- ('ADMIN_HOSPITAL','schedules.read.hospital'), ('ADMIN_HOSPITAL','schedules.create.hospital'), ('ADMIN_HOSPITAL','schedules.update.hospital'), ('ADMIN_HOSPITAL','schedules.cancel.hospital'),
- ('ADMIN_HOSPITAL','questions.read.hospital'), ('ADMIN_HOSPITAL','questions.create.hospital'), ('ADMIN_HOSPITAL','questions.update.hospital'), ('ADMIN_HOSPITAL','questions.deactivate.hospital'),
- ('ADMIN_HOSPITAL','surveys.settings.manage.hospital'), ('ADMIN_HOSPITAL','surveys.indicators.read.hospital'), ('ADMIN_HOSPITAL','manifestations.read.hospital'), ('ADMIN_HOSPITAL','audit.read.hospital'),
- ('GESTOR_SETOR','sectors.list'), ('GESTOR_SETOR','sectors.read'),
- ('GESTOR_SETOR','questions.read.assigned'), ('GESTOR_SETOR','questions.create.assigned'), ('GESTOR_SETOR','questions.update.assigned'), ('GESTOR_SETOR','questions.deactivate.assigned'), ('GESTOR_SETOR','surveys.indicators.read.assigned'),
+ ('SUPER_ADMIN','manifestations.read.hospital'), ('SUPER_ADMIN','manifestations.classify.hospital'), ('SUPER_ADMIN','manifestations.update_status.hospital'), ('SUPER_ADMIN','manifestations.log_attempt.hospital'), ('SUPER_ADMIN','manifestations.complete.hospital'), ('SUPER_ADMIN','audit.read.hospital'), ('SUPER_ADMIN','audit.read.manifestations'),
+ ('ADMIN_SETOR','sectors.list'), ('ADMIN_SETOR','sectors.read'), ('ADMIN_SETOR','sectors.update'), ('ADMIN_SETOR','sectors.change_status'),
+ ('ADMIN_SETOR','teams.manage.assigned'), ('ADMIN_SETOR','schedules.manage.assigned'),
+ ('ADMIN_SETOR','questions.read.assigned'), ('ADMIN_SETOR','questions.create.assigned'), ('ADMIN_SETOR','questions.update.assigned'), ('ADMIN_SETOR','questions.deactivate.assigned'), ('ADMIN_SETOR','surveys.indicators.read.assigned'),
+ ('GESTAO','surveys.indicators.read.hospital'),
  ('OUVIDORIA','manifestations.read.hospital'), ('OUVIDORIA','manifestations.classify.hospital'), ('OUVIDORIA','manifestations.update_status.hospital'), ('OUVIDORIA','manifestations.log_attempt.hospital'), ('OUVIDORIA','manifestations.complete.hospital'), ('OUVIDORIA','audit.read.manifestations'),
  ('VISUALIZADOR','surveys.indicators.read.hospital')
 )
 INSERT INTO public.perfis_permissoes (perfil_id, permissao_codigo)
-SELECT p.id, m.permission_code FROM matrix m JOIN public.perfis p ON p.codigo = m.profile_code;
-
-DELETE FROM public.permissoes
- WHERE codigo IN ('users.manage.hospital','teams.manage.hospital','teams.manage.assigned',
-   'schedules.manage.hospital','schedules.manage.assigned','surveys.manage.hospital',
-   'indicators.read.hospital','indicators.read.assigned','manifestations.read',
-   'manifestations.classify','manifestations.update','manifestations.close')
-   AND NOT EXISTS (SELECT 1 FROM public.perfis_permissoes pp
-                    WHERE pp.permissao_codigo = permissoes.codigo);
+SELECT DISTINCT p.id, m.permission_code FROM matrix m JOIN public.perfis p ON p.codigo = m.profile_code;
