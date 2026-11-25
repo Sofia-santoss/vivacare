@@ -8,6 +8,7 @@ import type {
   StaffUser,
   ManagementListResult,
   ManagementResource,
+  ManagementProfile,
 } from './contracts';
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api').replace(/\/$/, '');
@@ -28,6 +29,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       credentials: 'include',
       headers: {
         ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(['POST', 'PUT', 'PATCH', 'DELETE'].includes((init?.method ?? 'GET').toUpperCase()) && csrfToken
+          ? { 'X-CSRF-Token': csrfToken }
+          : {}),
         ...init?.headers,
       },
     });
@@ -105,4 +109,45 @@ export async function acceptStaffInvite(token: string, password: string): Promis
 export function getManagementRecords(resource: ManagementResource, page = 1, pageSize = 25): Promise<ManagementListResult> {
   const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
   return request(`/${resource}?${query.toString()}`);
+}
+
+export async function getManagementProfiles(): Promise<ManagementProfile[]> {
+  const result = await request<{ data: ManagementProfile[] }>('/usuarios/perfis');
+  return result.data;
+}
+
+export function createManagementRecord<T extends Record<string, unknown>>(
+  resource: ManagementResource,
+  payload: T,
+): Promise<unknown> {
+  return request(`/${resource}`, { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export function updateManagementRecord<T extends Record<string, unknown>>(
+  resource: ManagementResource,
+  id: string,
+  payload: T,
+): Promise<unknown> {
+  return request(`/${resource}/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(payload) });
+}
+
+export function updateManagementStatus(
+  resource: ManagementResource,
+  id: string,
+  active: boolean,
+): Promise<unknown> {
+  const field = resource === 'equipes' ? 'ativa' : 'ativo';
+  return request(`/${resource}/${encodeURIComponent(id)}/status`, {
+    method: 'PATCH', body: JSON.stringify({ [field]: active }),
+  });
+}
+
+export function updateManagementUserProfile(id: string, profileId: string): Promise<unknown> {
+  return request(`/usuarios/${encodeURIComponent(id)}/perfil`, {
+    method: 'PATCH', body: JSON.stringify({ perfilId: profileId }),
+  });
+}
+
+export function cancelManagementSchedule(id: string): Promise<unknown> {
+  return request(`/escalas/${encodeURIComponent(id)}/cancelamento`, { method: 'POST', body: JSON.stringify({}) });
 }

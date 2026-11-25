@@ -5,6 +5,7 @@ import { createInviteToken, invitationMarkerFor } from './inviteTokens.js';
 
 export type Convite = { email: string; nome: string; url: string; expiresAt: Date };
 export type EntregarConvite = (convite: Convite) => Promise<void>;
+export type PerfilDisponivel = { id: string; codigo: string; nome: string };
 
 type UsuarioRow = { id: string; nome: string; email: string; ativo: boolean; criado_em: Date; perfil_id: string; perfil_codigo: string; perfil_nome: string; senha_hash: string };
 
@@ -36,6 +37,14 @@ async function transacao<T>(pool: Pool, action: (client: PoolClient) => Promise<
 
 export class UsuariosRepository {
   constructor(private readonly pool: Pool, private readonly conviteUrlBase: string, private readonly entregarConvite: EntregarConvite) {}
+
+  async listarPerfisDisponiveis(): Promise<PerfilDisponivel[]> {
+    const result = await this.pool.query<PerfilDisponivel>(
+      `SELECT id::text, codigo AS code, nome AS name FROM public.perfis
+        WHERE codigo <> 'SUPER_ADMIN' ORDER BY nome, id`,
+    );
+    return result.rows;
+  }
 
   async listar(hospitalId: string, page: number, pageSize: number, termo?: string): Promise<{ data: Usuario[]; total: number }> {
     const offset = (page - 1) * pageSize;

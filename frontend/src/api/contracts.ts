@@ -69,6 +69,12 @@ export interface ManagementListResult {
   pagination: { page: number; pageSize: number; total: number; totalPages: number };
 }
 
+export interface ManagementProfile {
+  id: string;
+  code: string;
+  name: string;
+}
+
 export type ManifestationType = 'ELOGIO' | 'RECLAMACAO' | 'SUGESTAO';
 
 /** Dados identificaveis enviados apenas pelo fluxo separado da Ouvidoria. */
