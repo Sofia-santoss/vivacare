@@ -27,6 +27,7 @@ describe('Ouvidoria pública independente da pesquisa', () => {
     const client = {
       query: vi.fn(async (sql: string, values: unknown[] = []) => {
         calls.push({ sql, values });
+        if (sql.includes('FROM public.hospitais')) return { rows: [{ id: '3' }] };
         if (sql.includes('FROM public.manifestacoes WHERE protocolo')) return { rows: [] };
         return { rows: [], rowCount: 1 };
       }),
@@ -39,8 +40,9 @@ describe('Ouvidoria pública independente da pesquisa', () => {
     expect(response.status).toBe(201);
     expect(response.body.status).toBe('submitted');
     const insert = calls.find(({ sql }) => sql.includes('INSERT INTO public.manifestacoes'));
+    expect(insert?.sql).toContain('hospital_id');
     expect(insert?.sql).not.toContain('resposta_id');
-    expect(insert?.values).toEqual([expect.any(String), 'RECLAMACAO', 'Pessoa de teste', '(11) 98765-4321', 'Relato sintético sem dados reais.']);
+    expect(insert?.values).toEqual(['3', expect.any(String), 'RECLAMACAO', 'Pessoa de teste', '(11) 98765-4321', 'Relato sintético sem dados reais.']);
     expect(client.release).toHaveBeenCalledOnce();
   });
 
@@ -49,6 +51,7 @@ describe('Ouvidoria pública independente da pesquisa', () => {
     const client = {
       query: vi.fn(async (sql: string) => {
         calls.push(sql);
+        if (sql.includes('FROM public.hospitais')) return { rows: [{ id: '3' }] };
         if (sql.includes('FROM public.manifestacoes WHERE protocolo')) {
           return { rows: [{ type: 'RECLAMACAO', name: 'Pessoa de teste', phone: '(11) 98765-4321', statement: 'Relato sintético sem dados reais.', consent: true, anonymous: false }] };
         }

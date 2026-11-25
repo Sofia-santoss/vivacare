@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ApiClientError, getManagementRecords } from '../api/client';
+import { ApiClientError, cancelManagementSchedule, getManagementRecords, updateManagementStatus } from '../api/client';
 import type { ManagementListResult, ManagementResource } from '../api/contracts';
 import { Button } from './Button';
+import { ManagementRecordDialog } from './ManagementRecordDialog';
 
 type ManagementSection = 'Setores' | 'Equipes' | 'Turnos' | 'Escalas' | 'Usuários';
 
@@ -39,6 +40,11 @@ export function ManagementApiList({ section }: { section: ManagementSection }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
+  const [creating, setCreating] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<Record<string, unknown> | null>(null);
+  const [actionError, setActionError] = useState('');
+  const [successNotice, setSuccessNotice] = useState('');
+  const [savingId, setSavingId] = useState('');
 
   const load = useCallback(async (signal: AbortSignal) => {
     setLoading(true);
@@ -70,19 +76,47 @@ export function ManagementApiList({ section }: { section: ManagementSection }) {
   const total = result?.pagination.total ?? 0;
   const totalPages = result?.pagination.totalPages ?? 1;
   const columns = columnsBySection[section];
+  const resource = resourceBySection[section];
+
+  const changeRecordStatus = async (record: Record<string, unknown>) => {
+    const id = String(record.id ?? '');
+    if (!id || savingId) return;
+    const isSchedule = section === 'Escalas';
+    if (isSchedule && !window.confirm('Cancelar esta escala?')) return;
+    setSavingId(id);
+    setActionError('');
+    try {
+      if (isSchedule) await cancelManagementSchedule(id);
+      else {
+        const active = Boolean(record[section === 'Equipes' ? 'ativa' : 'ativo']);
+        await updateManagementStatus(resource, id, !active);
+      }
+      setReloadKey((value) => value + 1);
+    } catch (requestError) {
+      setActionError(requestError instanceof Error ? requestError.message : 'Não foi possível atualizar o registro.');
+    } finally {
+      setSavingId('');
+    }
+  };
 
   return <section className="management-list-section">
     <div className="list-heading"><div><h2>{section}</h2><p>Registros carregados da API do VivaCare.</p></div>
-      <Button variante="secundario" className="list-create-button" onClick={() => setReloadKey((value) => value + 1)} disabled={loading}>{loading ? 'Atualizando...' : 'Atualizar'}</Button>
+      <div className="dashboard-actions"><Button className="list-create-button" onClick={() => setCreating(true)}>＋ {section === 'Usuários' ? 'Convidar usuário' : 'Novo cadastro'}</Button><Button variante="secundario" className="list-create-button" onClick={() => setReloadKey((value) => value + 1)} disabled={loading}>{loading ? 'Atualizando...' : 'Atualizar'}</Button></div>
     </div>
-    {error && <p className="inline-notice" role="alert">{error}</p>}
+    {(error || actionError) && <p className="inline-notice" role="alert">{error || actionError}</p>}
+    {successNotice && <p className="inline-notice" role="status">{successNotice}</p>}
     {loading ? <div className="dashboard-card management-empty" role="status"><strong>Carregando {section.toLowerCase()}...</strong></div>
       : result && result.data.length > 0 ? <>
         <p className="draft-label">{total} registro{total === 1 ? '' : 's'} no total</p>
-        <div className="dashboard-card management-records-wrap"><table className="management-records"><thead><tr>{columns.map((column) => <th key={column.path}>{column.label}</th>)}</tr></thead>
-          <tbody>{result.data.map((record, index) => <tr key={String(record.id ?? index)}>{columns.map((column) => <td key={column.path}>{displayValue(valueAt(record, column.path))}</td>)}</tr>)}</tbody>
+        <div className="dashboard-card management-records-wrap"><table className="management-records"><thead><tr>{columns.map((column) => <th key={column.path}>{column.label}</th>)}<th>Ação</th></tr></thead>
+          <tbody>{result.data.map((record, index) => {
+            const inactive = section === 'Escalas' ? record.status === 'CANCELADA' : record[section === 'Equipes' ? 'ativa' : 'ativo'] === false;
+            return <tr key={String(record.id ?? index)}>{columns.map((column) => <td key={column.path}>{displayValue(valueAt(record, column.path))}</td>)}<td><button type="button" className="row-action" onClick={() => setEditingRecord(record)}>Editar</button>{' '}<button type="button" className="row-action" disabled={inactive || savingId === String(record.id)} onClick={() => void changeRecordStatus(record)}>{savingId === String(record.id) ? 'Salvando...' : section === 'Escalas' ? 'Cancelar escala' : inactive ? 'Inativo' : 'Desativar'}</button></td></tr>;
+          })}</tbody>
         </table></div>
         <div className="management-pagination"><button type="button" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>Anterior</button><span>Página {page} de {totalPages}</span><button type="button" disabled={page >= totalPages} onClick={() => setPage((value) => Math.min(totalPages, value + 1))}>Próxima</button></div>
       </> : !error && <div className="dashboard-card management-empty"><strong>Nenhum registro encontrado</strong><p>A API não retornou registros para esta consulta.</p></div>}
+    {creating && <ManagementRecordDialog section={section} onClose={() => setCreating(false)} onCreated={() => { setCreating(false); setSuccessNotice(section === 'Usuários' ? 'A solicitação de convite foi recebida. A API não confirma a entrega do e-mail; verifique o provedor SMTP antes de orientar a pessoa convidada.' : 'Cadastro salvo na API.'); setReloadKey((value) => value + 1); }} />}
+    {editingRecord && <ManagementRecordDialog section={section} record={editingRecord} onClose={() => setEditingRecord(null)} onCreated={() => { setEditingRecord(null); setSuccessNotice('Alterações salvas na API.'); setReloadKey((value) => value + 1); }} />}
   </section>;
 }

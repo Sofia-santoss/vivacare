@@ -6,7 +6,7 @@ BEGIN
     RAISE EXCEPTION 'Migration 004 found existing permission tables; inspect the proposal state before continuing';
   END IF;
 
-  FOREACH expected_profile IN ARRAY ARRAY['SUPER_ADMIN','ADMIN_HOSPITAL','GESTOR_SETOR','OUVIDORIA','VISUALIZADOR'] LOOP
+  FOREACH expected_profile IN ARRAY ARRAY['SUPER_ADMIN','ADMIN_SETOR','GESTAO','OUVIDORIA','VISUALIZADOR'] LOOP
     IF NOT EXISTS (SELECT 1 FROM public.perfis WHERE codigo = expected_profile) THEN
       RAISE EXCEPTION 'Migration 004 requires the existing profile code %; no profile will be created or inferred', expected_profile;
     END IF;
@@ -59,20 +59,14 @@ WITH matrix(profile_code, permission_code) AS (
     ('SUPER_ADMIN','manifestations.read'), ('SUPER_ADMIN','manifestations.classify'),
     ('SUPER_ADMIN','manifestations.update'), ('SUPER_ADMIN','manifestations.close'), ('SUPER_ADMIN','audit.read.hospital'),
 
-    ('ADMIN_HOSPITAL','users.manage.hospital'),
-    ('ADMIN_HOSPITAL','sectors.list'), ('ADMIN_HOSPITAL','sectors.read'), ('ADMIN_HOSPITAL','sectors.create'),
-    ('ADMIN_HOSPITAL','sectors.update'), ('ADMIN_HOSPITAL','sectors.change_status'), ('ADMIN_HOSPITAL','sectors.scope.hospital'),
-    ('ADMIN_HOSPITAL','teams.manage.hospital'), ('ADMIN_HOSPITAL','schedules.manage.hospital'),
-    ('ADMIN_HOSPITAL','surveys.manage.hospital'), ('ADMIN_HOSPITAL','indicators.read.hospital'),
-    ('ADMIN_HOSPITAL','manifestations.read'), ('ADMIN_HOSPITAL','audit.read.hospital'),
-
-    ('GESTOR_SETOR','sectors.list'), ('GESTOR_SETOR','sectors.read'), ('GESTOR_SETOR','sectors.update'),
-    ('GESTOR_SETOR','sectors.change_status'), ('GESTOR_SETOR','teams.manage.assigned'),
-    ('GESTOR_SETOR','schedules.manage.assigned'), ('GESTOR_SETOR','indicators.read.assigned'),
+    ('ADMIN_SETOR','sectors.list'), ('ADMIN_SETOR','sectors.read'), ('ADMIN_SETOR','sectors.update'),
+    ('ADMIN_SETOR','sectors.change_status'), ('ADMIN_SETOR','teams.manage.assigned'),
+    ('ADMIN_SETOR','schedules.manage.assigned'), ('ADMIN_SETOR','indicators.read.assigned'),
 
     ('OUVIDORIA','manifestations.read'), ('OUVIDORIA','manifestations.classify'),
     ('OUVIDORIA','manifestations.update'), ('OUVIDORIA','manifestations.close'), ('OUVIDORIA','audit.read.manifestations'),
 
+    ('GESTAO','indicators.read.hospital'),
     ('VISUALIZADOR','indicators.read.hospital')
 )
 INSERT INTO public.perfis_permissoes (perfil_id, permissao_codigo)

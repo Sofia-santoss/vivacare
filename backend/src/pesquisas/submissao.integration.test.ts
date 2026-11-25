@@ -362,11 +362,11 @@ async function prepareOfficialChainAndProposal(): Promise<void> {
     `INSERT INTO public.hospitais(nome) VALUES ('Hospital sintético pesquisas') RETURNING id::text`,
   )).rows[0]!.id;
   await setup.query(`INSERT INTO public.perfis(codigo,nome) VALUES
-    ('SUPER_ADMIN','Perfil sintético Super Admin'),
-    ('ADMIN_HOSPITAL','Perfil sintético Admin Hospital'),
-    ('GESTOR_SETOR','Perfil sintético Gestor Setor'),
-    ('OUVIDORIA','Perfil sintético Ouvidoria'),
-    ('VISUALIZADOR','Perfil sintético Visualizador')`);
+    ('SUPER_ADMIN','Administração geral do sistema'),
+    ('ADMIN_SETOR','Administração de um ou mais setores'),
+    ('GESTAO','Acesso gerencial aos indicadores'),
+    ('OUVIDORIA','Gestão de manifestações e protocolos'),
+    ('VISUALIZADOR','Consulta de informações autorizadas')`);
 
   await applyPendingMigrations(setup, migrationDirectory, baselineFile);
 

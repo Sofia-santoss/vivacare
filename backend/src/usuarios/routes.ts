@@ -16,6 +16,11 @@ export function createUsuariosRouter(pool: Pool, repository: UsuariosRepository)
   const router = express.Router();
   const authenticated = auth();
 
+  router.get('/perfis', authenticated, requirePermission(pool, PERMISSIONS.usersCreate), async (_req, res, next) => {
+    try { return res.json({ data: await repository.listarPerfisDisponiveis() }); }
+    catch (error) { return next(error); }
+  });
+
   router.get('/', authenticated, requirePermission(pool, PERMISSIONS.usersRead), async (req, res, next) => {
     try {
       const { page, pageSize } = validarPaginacao(req.query as Record<string, unknown>);

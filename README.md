@@ -79,6 +79,10 @@ npm run dev
 
 Para abrir uma prévia sem banco ou QR Code, use `http://localhost:5173/?preview=1`. Uma pesquisa real pode ser acessada por URL do setor, por exemplo `http://localhost:5173/pesquisa/recepcao`, ou por `?codigo=UUID`. O frontend usa `http://localhost:3000/api` por padrão; para alterar, copie `frontend/.env.example` para `frontend/.env` e ajuste `VITE_API_BASE_URL`.
 
+## Perfis e autorizacao
+
+Consulte [Perfis oficiais e autorizacao](docs/perfis-e-permissoes.md) para regras, matriz, isolamento por hospital/setor, checksums das migrations e validacao local.
+
 ## Rotas principais
 
 | Método e rota | Uso |
@@ -95,11 +99,15 @@ Para abrir uma prévia sem banco ou QR Code, use `http://localhost:5173/?preview
 
 O endpoint anônimo de pesquisa não aceita dados de contato. A Ouvidoria é um envio identificável separado e não é associada à resposta anônima. O limiar de NPS que apresenta a Ouvidoria deve seguir o roteiro aprovado pelo cliente.
 
+## Perfis e autorização
+
+Consulte [Perfis oficiais e autorização](docs/perfis-e-permissoes.md) para regras, matriz, isolamento por hospital/setor, checksums das migrations e validação local.
+
 ## Estado do banco e limitações
 
-A disponibilidade das rotas depende de schema, migrations e credenciais PostgreSQL preparados pela dupla responsável pelo banco. A proposta de migration 008 permanece em `database/proposals` e não foi promovida para `database/migrations` nem aplicada. Confira [`database/migrations/README.md`](database/migrations/README.md), [`database/proposals/008_escalas_pesquisas.md`](database/proposals/008_escalas_pesquisas.md) e [`docs/API_PUBLICA_PENDENCIAS.md`](docs/API_PUBLICA_PENDENCIAS.md); não aplique propostas diretamente em banco compartilhado.
+A disponibilidade das rotas depende de schema, migrations e credenciais PostgreSQL preparados pela dupla responsável pelo banco. A migration 008 de escopo hospitalar da Ouvidoria está em `database/migrations`; a proposta separada de pesquisas/escalas continua em `database/proposals` e não foi promovida. Confira [`database/migrations/README.md`](database/migrations/README.md), [`database/proposals/008_escalas_pesquisas.md`](database/proposals/008_escalas_pesquisas.md) e [`docs/API_PUBLICA_PENDENCIAS.md`](docs/API_PUBLICA_PENDENCIAS.md); não aplique propostas diretamente em banco compartilhado.
 
-O schema atual não oferece uma lista de opções para perguntas do tipo `OPCAO`; por enquanto, o frontend envia esse valor como texto. A forma de cadastrar opções precisa ser definida antes de usar esse tipo em produção. O envio de convites depende de configuração de entrega de e-mail. A integração ponta a ponta ainda requer validação com banco preparado e dados sintéticos.
+O schema atual não oferece uma lista de opções para perguntas do tipo `OPCAO`; por enquanto, o frontend envia esse valor como texto. A forma de cadastrar opções precisa ser definida antes de usar esse tipo em produção. O envio de convites depende de configuração de entrega de e-mail. A integração ponta a ponta ainda requer validação com banco preparado e dados sintéticos. A Ouvidoria autenticada e os indicadores agora têm rotas protegidas por perfil; a migration 008 associa cada manifestação ao hospital para isolamento entre hospitais.
 
 ## Documentação e gestão do projeto
 

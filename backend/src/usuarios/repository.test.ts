@@ -144,7 +144,7 @@ describe('transações de usuários', () => {
     expect(calls[0]?.sql).toContain('WHERE u.id=$1 AND u.hospital_id=$2');
     expect(calls[0]?.values).toEqual(['22', '4']);
     const targetSuperAdmin = await fakePool((sql) => {
-      if (sql.includes('SELECT p.codigo AS profile_code')) return { rows: [{ profile_code: 'ADMIN_HOSPITAL' }], rowCount: 1 };
+      if (sql.includes('SELECT p.codigo AS profile_code')) return { rows: [{ profile_code: 'ADMIN_SETOR' }], rowCount: 1 };
       return { rows: [], rowCount: 0 };
     });
     const repo2 = new UsuariosRepository(targetSuperAdmin.pool, 'https://app.example.test', vi.fn());

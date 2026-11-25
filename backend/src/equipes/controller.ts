@@ -4,35 +4,36 @@ import { EquipesService } from './service.js';
 import { validarAtualizacao, validarCriacao, validarId, validarListagem, validarStatus } from './validacao.js';
 
 export function createEquipesController(service: EquipesService) {
+  const sectorIdsFor = (req: import('express').Request) => req.sectorScope === 'assigned' ? req.auth?.sectorIds ?? [] : null;
   const handler: Record<string, RequestHandler> = {
     listar: async (req, res, next) => {
       if (!req.auth) return res.status(401).json({ error: 'Autenticação necessária.' });
       try {
         const { filtros, paginacao } = validarListagem(req.query as Record<string, unknown>);
-        const result = await service.listar(req.auth.hospitalId, filtros, paginacao);
+        const result = await service.listar(req.auth.hospitalId, filtros, paginacao, sectorIdsFor(req));
         return res.json({ data: result.data, pagination: { page: result.page, pageSize: result.pageSize, total: result.total, totalPages: Math.ceil(result.total / result.pageSize) } });
       } catch (error) { return next(error); }
     },
     buscar: async (req, res, next) => {
       if (!req.auth) return res.status(401).json({ error: 'Autenticação necessária.' });
-      try { return res.json({ data: await service.buscar(req.auth.hospitalId, validarId(req.params.id)) }); }
+      try { return res.json({ data: await service.buscar(req.auth.hospitalId, validarId(req.params.id), sectorIdsFor(req)) }); }
       catch (error) { return next(error); }
     },
     criar: async (req, res, next) => {
       if (!req.auth) return res.status(401).json({ error: 'Autenticação necessária.' });
-      try { return res.status(201).json({ data: await service.criar(req.auth.hospitalId, req.auth.userId, validarCriacao(req.body)) }); }
+      try { return res.status(201).json({ data: await service.criar(req.auth.hospitalId, req.auth.userId, validarCriacao(req.body), sectorIdsFor(req)) }); }
       catch (error) { return next(error); }
     },
     atualizar: async (req, res, next) => {
       if (!req.auth) return res.status(401).json({ error: 'Autenticação necessária.' });
-      try { return res.json({ data: await service.atualizar(req.auth.hospitalId, req.auth.userId, validarId(req.params.id), validarAtualizacao(req.body)) }); }
+      try { return res.json({ data: await service.atualizar(req.auth.hospitalId, req.auth.userId, validarId(req.params.id), validarAtualizacao(req.body), sectorIdsFor(req)) }); }
       catch (error) { return next(error); }
     },
     alterarStatus: async (req, res, next) => {
       if (!req.auth) return res.status(401).json({ error: 'Autenticação necessária.' });
       try {
         const { ativa } = validarStatus(req.body);
-        return res.json({ data: await service.alterarStatus(req.auth.hospitalId, req.auth.userId, validarId(req.params.id), ativa) });
+        return res.json({ data: await service.alterarStatus(req.auth.hospitalId, req.auth.userId, validarId(req.params.id), ativa, sectorIdsFor(req)) });
       } catch (error) { return next(error); }
     },
   };

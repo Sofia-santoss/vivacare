@@ -11,9 +11,10 @@ import {
   requireSectorScope,
 } from './routes.js';
 import { hashPassword } from './passwords.js';
+import { PERMISSIONS } from './permissions.js';
 
 const allowedOrigins = new Set(['http://localhost:5173']);
-const profile = { id: '3', code: 'GESTOR_SETOR', name: 'Gestor de setor' };
+const profile = { id: '3', code: 'ADMIN_SETOR', name: 'Administração de setor' };
 const principalRow = {
   user_id: '42', name: 'Conta sintética', email: 'equipe@example.invalid',
   hospital_id: '2',
@@ -82,7 +83,7 @@ function makeHarness(nodeEnv: NodeEnv = 'development', ipLimitEnabled = false) {
   protectedRoutes.get(
     '/restricted/:sectorId',
     createAuthenticationMiddleware(options),
-    requirePermission(pool, 'survey.read'),
+    requirePermission(pool, PERMISSIONS.indicatorsReadAssigned),
     requireSectorScope((req) => typeof req.params.sectorId === 'string' ? req.params.sectorId : undefined),
     (req, res) => res.json({ userId: req.auth?.userId }),
   );
@@ -340,6 +341,6 @@ describe('rotas HTTP de autenticação', () => {
     const allowed = await agent.get('/api/restricted/7');
     expect(allowed.status).toBe(200);
     expect(allowed.body).toEqual({ userId: '42' });
-    expect(harness.poolQuery).toHaveBeenCalledWith(expect.stringContaining('perfis_permissoes'), [profile.id, 'survey.read']);
+    expect(harness.poolQuery).toHaveBeenCalledWith(expect.stringContaining('perfis_permissoes'), [profile.id, PERMISSIONS.indicatorsReadAssigned]);
   });
 });

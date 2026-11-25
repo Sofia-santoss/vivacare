@@ -8,6 +8,12 @@ import type {
   StaffUser,
   ManagementListResult,
   ManagementResource,
+  ManagementProfile,
+  IndicatorListResult,
+  OmbudsmanHistoryEntry,
+  OmbudsmanRecord,
+  OmbudsmanSector,
+  OmbudsmanStatus,
 } from './contracts';
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api').replace(/\/$/, '');
@@ -28,6 +34,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       credentials: 'include',
       headers: {
         ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(['POST', 'PUT', 'PATCH', 'DELETE'].includes((init?.method ?? 'GET').toUpperCase()) && csrfToken
+          ? { 'X-CSRF-Token': csrfToken }
+          : {}),
         ...init?.headers,
       },
     });
@@ -105,4 +114,87 @@ export async function acceptStaffInvite(token: string, password: string): Promis
 export function getManagementRecords(resource: ManagementResource, page = 1, pageSize = 25): Promise<ManagementListResult> {
   const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
   return request(`/${resource}?${query.toString()}`);
+}
+
+export async function getManagementProfiles(): Promise<ManagementProfile[]> {
+  const result = await request<{ data: ManagementProfile[] }>('/usuarios/perfis');
+  return result.data;
+}
+
+export function createManagementRecord<T extends Record<string, unknown>>(
+  resource: ManagementResource,
+  payload: T,
+): Promise<unknown> {
+  return request(`/${resource}`, { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export function updateManagementRecord<T extends Record<string, unknown>>(
+  resource: ManagementResource,
+  id: string,
+  payload: T,
+): Promise<unknown> {
+  return request(`/${resource}/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(payload) });
+}
+
+export function updateManagementStatus(
+  resource: ManagementResource,
+  id: string,
+  active: boolean,
+): Promise<unknown> {
+  const field = resource === 'equipes' ? 'ativa' : 'ativo';
+  return request(`/${resource}/${encodeURIComponent(id)}/status`, {
+    method: 'PATCH', body: JSON.stringify({ [field]: active }),
+  });
+}
+
+export function updateManagementUserProfile(id: string, profileId: string): Promise<unknown> {
+  return request(`/usuarios/${encodeURIComponent(id)}/perfil`, {
+    method: 'PATCH', body: JSON.stringify({ perfilId: profileId }),
+  });
+}
+
+export function cancelManagementSchedule(id: string): Promise<unknown> {
+  return request(`/escalas/${encodeURIComponent(id)}/cancelamento`, { method: 'POST', body: JSON.stringify({}) });
+}
+
+export function getIndicators(page = 1, pageSize = 100): Promise<IndicatorListResult> {
+  const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  return request(`/indicadores?${query.toString()}`);
+}
+
+export function getOmbudsmanRecords(status?: OmbudsmanStatus, page = 1, pageSize = 100): Promise<{ data: OmbudsmanRecord[]; pagination: { page: number; pageSize: number } }> {
+  const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  if (status) query.set('status', status);
+  return request(`/ouvidoria/manifestacoes?${query.toString()}`);
+}
+
+export async function getOmbudsmanSectors(): Promise<OmbudsmanSector[]> {
+  const result = await request<{ data: OmbudsmanSector[] }>('/ouvidoria/setores');
+  return result.data;
+}
+
+export async function getOmbudsmanHistory(id: string): Promise<OmbudsmanHistoryEntry[]> {
+  const result = await request<{ data: OmbudsmanHistoryEntry[] }>(`/ouvidoria/manifestacoes/${encodeURIComponent(id)}/historico`);
+  return result.data;
+}
+
+export async function getOmbudsmanRecord(id: string): Promise<OmbudsmanRecord> {
+  const result = await request<{ data: OmbudsmanRecord }>(`/ouvidoria/manifestacoes/${encodeURIComponent(id)}`);
+  return result.data;
+}
+
+export function classifyOmbudsmanRecord(id: string, setorId: string): Promise<void> {
+  return request(`/ouvidoria/manifestacoes/${encodeURIComponent(id)}/classificacao`, { method: 'PATCH', body: JSON.stringify({ setorId }) });
+}
+
+export function updateOmbudsmanStatus(id: string, status: Extract<OmbudsmanStatus, 'EM_ANALISE' | 'AGUARDANDO_CONTATO' | 'EM_TRATAMENTO'>): Promise<void> {
+  return request(`/ouvidoria/manifestacoes/${encodeURIComponent(id)}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
+}
+
+export function registerOmbudsmanAttempt(id: string, descricao: string, contatoRealizado: boolean): Promise<void> {
+  return request(`/ouvidoria/manifestacoes/${encodeURIComponent(id)}/tentativas`, { method: 'POST', body: JSON.stringify({ descricao, contatoRealizado }) });
+}
+
+export function completeOmbudsmanRecord(id: string, respostaFinal: string): Promise<void> {
+  return request(`/ouvidoria/manifestacoes/${encodeURIComponent(id)}/conclusao`, { method: 'POST', body: JSON.stringify({ respostaFinal }) });
 }

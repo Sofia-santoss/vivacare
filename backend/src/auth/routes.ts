@@ -6,7 +6,7 @@ import { verifyPassword } from './passwords.js';
 import { loginAttemptKey, runLoginAttempt, type LoginAttemptOutcome, type LoginAttemptResult } from './loginAttempts.js';
 import { reserveIpLoginRequest, type IpRateLimitConfig } from './ipRateLimit.js';
 import type { NodeEnv } from '../config/nodeEnv.js';
-import { PERMISSIONS, type SectorScope } from './permissions.js';
+import { PERMISSIONS, profileMayUsePermission, type SectorScope } from './permissions.js';
 
 const SESSION_COOKIE = 'vivacare_session';
 const CSRF_COOKIE = 'vivacare_csrf';
@@ -243,6 +243,10 @@ export function requirePermission(pool: Pool, permissionCode: string): RequestHa
       res.status(401).json({ error: 'Autenticação necessária.' });
       return;
     }
+    if (!profileMayUsePermission(req.auth.profile.code, permissionCode)) {
+      res.status(403).json({ error: 'Permissão insuficiente.' });
+      return;
+    }
     try {
       const result = await pool.query<{ allowed: boolean }>(
         `SELECT EXISTS (
@@ -262,10 +266,46 @@ export function requirePermission(pool: Pool, permissionCode: string): RequestHa
   };
 }
 
+/** Authorizes hospital-wide or associated-sector management and records the narrower effective scope. */
+export function requirePermissionWithSectorScope(
+  pool: Pool,
+  hospitalPermission: string,
+  assignedSectorPermission: string,
+): RequestHandler {
+  return async (req, res, next) => {
+    if (!req.auth) return res.status(401).json({ error: 'Autenticação necessária.' });
+    const allowedCodes = [hospitalPermission, assignedSectorPermission]
+      .filter((code) => profileMayUsePermission(req.auth!.profile.code, code));
+    if (!allowedCodes.length) return res.status(403).json({ error: 'Permissão insuficiente.' });
+    try {
+      const result = await pool.query<{ permissao_codigo: string }>(
+        `SELECT permissao_codigo FROM public.perfis_permissoes
+          WHERE perfil_id=$1 AND permissao_codigo=ANY($2::text[])`,
+        [req.auth.profile.id, allowedCodes],
+      );
+      const granted = new Set(result.rows.map((row) => row.permissao_codigo));
+      if (profileMayUsePermission(req.auth.profile.code, hospitalPermission) && granted.has(hospitalPermission)) {
+        req.sectorScope = 'hospital';
+        return next();
+      }
+      if (profileMayUsePermission(req.auth.profile.code, assignedSectorPermission) && granted.has(assignedSectorPermission)) {
+        req.sectorScope = 'assigned';
+        return next();
+      }
+      return res.status(403).json({ error: 'Permissão insuficiente.' });
+    } catch (error) { return next(error); }
+  };
+}
+
 export function resolveSectorScope(pool: Pool): RequestHandler {
   return async (req, res, next) => {
     if (!req.auth) {
       res.status(401).json({ error: 'Autenticação necessária.' });
+      return;
+    }
+    if (!profileMayUsePermission(req.auth.profile.code, PERMISSIONS.sectorsHospitalScope)) {
+      req.sectorScope = 'assigned';
+      next();
       return;
     }
     try {

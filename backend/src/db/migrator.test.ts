@@ -155,7 +155,7 @@ describe('proteções do runner versionado', () => {
   it('descobre apenas arquivos up e calcula checksum sobre os bytes do conteúdo', async () => {
     const migrations = await discoverMigrations(migrationDirectory);
     expect(migrations.map((migration) => migration.version)).toEqual([
-      '001_autenticacao', '002_usuarios_hospital', '003_auditoria_administrativa', '004_matriz_autorizacao', '005_matriz_permissoes_aprovada', '006_privilegios_modulo_usuarios', '007_privilegios_usuario_setores',
+      '001_autenticacao', '002_usuarios_hospital', '003_auditoria_administrativa', '004_matriz_autorizacao', '005_matriz_permissoes_aprovada', '006_privilegios_modulo_usuarios', '007_privilegios_usuario_setores', '008_manifestacoes_hospital_scope',
     ]);
     const sql = await readFile(resolve(migrationDirectory, '001_autenticacao.up.sql'));
     expect(migrations[0]?.checksum).toBe(createHash('sha256').update(sql).digest('hex'));
@@ -163,12 +163,12 @@ describe('proteções do runner versionado', () => {
     expect(numericVersions).toEqual([...numericVersions].sort((left, right) => left - right));
   });
 
-  it('discovers the official 007 and does not discover the separate unpromoted proposal', async () => {
+  it('discovers the official migrations and does not discover the separate proposal', async () => {
     const migrations = await discoverMigrations(migrationDirectory);
     const proposals = await readdir(resolve(root, 'database/proposals'));
     expect(proposals).toContain('008_escalas_pesquisas.up.sql');
     expect(migrations.map((migration) => migration.file)).not.toContain('008_escalas_pesquisas.up.sql');
-    expect(migrations.at(-1)?.version).toBe('007_privilegios_usuario_setores');
+    expect(migrations.at(-1)?.version).toBe('008_manifestacoes_hospital_scope');
   });
 
   it('rejects duplicate numeric migration versions', async () => {

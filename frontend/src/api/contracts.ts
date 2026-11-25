@@ -69,6 +69,12 @@ export interface ManagementListResult {
   pagination: { page: number; pageSize: number; total: number; totalPages: number };
 }
 
+export interface ManagementProfile {
+  id: string;
+  code: string;
+  name: string;
+}
+
 export type ManifestationType = 'ELOGIO' | 'RECLAMACAO' | 'SUGESTAO';
 
 /** Dados identificaveis enviados apenas pelo fluxo separado da Ouvidoria. */
@@ -83,4 +89,60 @@ export interface PublicOmbudsmanBody {
 export interface PublicSubmissionResult {
   status: 'submitted' | 'already_submitted';
   protocol?: string;
+}
+
+export interface IndicatorRow {
+  setor_id: string;
+  setor: string;
+  data_resposta: string;
+  turno_id: string | null;
+  turno: string | null;
+  total_respostas: string;
+  total_promotores: string;
+  total_neutros: string;
+  total_detratores: string;
+  nps: string;
+}
+
+export interface IndicatorListResult {
+  data: IndicatorRow[];
+  pagination: { page: number; pageSize: number };
+}
+
+export type OmbudsmanStatus = 'RECEBIDA' | 'EM_ANALISE' | 'AGUARDANDO_CONTATO' | 'EM_TRATAMENTO' | 'CONCLUIDA' | 'ARQUIVADA';
+
+export interface OmbudsmanSector {
+  id: string;
+  nome: string;
+}
+
+export interface OmbudsmanRecord {
+  id: string;
+  protocolo: string;
+  tipo: ManifestationType;
+  status: OmbudsmanStatus;
+  setor_id: string | null;
+  setor: string | null;
+  anonima: boolean;
+  nome_contato: string | null;
+  telefone_contato: string | null;
+  email_contato: string | null;
+  autoriza_contato: boolean;
+  relato: string;
+  resposta_final: string | null;
+  criada_em: string;
+  atualizada_em: string;
+  encerrada_em: string | null;
+}
+
+export interface OmbudsmanHistoryEntry {
+  id: string;
+  status_anterior: OmbudsmanStatus | null;
+  status_novo: OmbudsmanStatus | null;
+  acao: string;
+  descricao: string | null;
+  contato_realizado: boolean;
+  registrado_em: string;
+  usuario_id: string | null;
+  usuario: string | null;
 }
