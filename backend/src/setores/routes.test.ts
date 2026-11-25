@@ -10,12 +10,13 @@ import { createSetoresRouter } from './routes.js';
 
 const principal: AuthPrincipal = {
   userId: '12', name: 'Gestora', email: 'gestora@example.invalid', hospitalId: '2',
-  profile: { id: '4', code: 'GESTOR_SETOR', name: 'Gestor de setor' }, sectorIds: ['7'],
+  profile: { id: '2', code: 'ADMIN_SETOR', name: 'Administração de setor' }, sectorIds: ['7'],
 };
 const sector = { id: '7', hospitalId: '2', nome: 'UTI', descricao: null, ativo: true, criadoEm: new Date('2026-01-01T00:00:00.000Z') };
 
 function makeApp(options: {
   authenticated?: boolean;
+  profileCode?: string;
   permissionAllowed?: boolean;
   hospitalScope?: boolean;
   createAllowed?: boolean;
@@ -39,7 +40,10 @@ function makeApp(options: {
   } as unknown as SetoresService;
   const app = express();
   app.use(express.json());
-  if (options.authenticated !== false) app.use((req, _res, next) => { req.auth = principal; next(); });
+  if (options.authenticated !== false) app.use((req, _res, next) => {
+    req.auth = { ...principal, profile: { ...principal.profile, code: options.profileCode ?? principal.profile.code } };
+    next();
+  });
   app.use('/setores', createSetoresRouter(pool, service));
   return { app, service, permissionQuery };
 }
@@ -59,14 +63,14 @@ describe('autorização e escopo das rotas de setores', () => {
   });
 
   it('permite escopo hospitalar somente quando a role tem a permissão correspondente', async () => {
-    const hospitalAdmin = makeApp({ hospitalScope: true });
+    const hospitalAdmin = makeApp({ hospitalScope: true, profileCode: 'SUPER_ADMIN' });
     const list = await request(hospitalAdmin.app).get('/setores');
     expect(list.status).toBe(200);
     expect(hospitalAdmin.service.listar).toHaveBeenCalledWith('2', null, {}, { page: 1, pageSize: 25 });
     expect((await request(hospitalAdmin.app).get('/setores/900')).status).toBe(200);
 
-    const gestor = makeApp({ hospitalScope: false });
-    expect((await request(gestor.app).get('/setores/900')).status).toBe(403);
+    const sectorAdmin = makeApp({ hospitalScope: false });
+    expect((await request(sectorAdmin.app).get('/setores/900')).status).toBe(403);
   });
 
   it('nega acesso sem autenticação, sem permissão de operação ou sem código no banco', async () => {
@@ -88,7 +92,7 @@ describe('autorização e escopo das rotas de setores', () => {
     expect((await request(gestor.app).post('/setores').send({ nome: 'Nova ala' })).status).toBe(403);
     expect(gestor.service.criar).not.toHaveBeenCalled();
 
-    const admin = makeApp();
+    const admin = makeApp({ profileCode: 'SUPER_ADMIN' });
     const created = await request(admin.app).post('/setores').send({ nome: 'UTI nova' });
     expect(created.status).toBe(201);
     expect(admin.service.criar).toHaveBeenCalledWith({ nome: 'UTI nova', descricao: null }, '2', '12');

@@ -7,8 +7,8 @@ import type { EquipesService } from './service.js';
 import { createEquipesRouter } from './routes.js';
 
 const equipe = { id: '31', setorId: '7', setorNome: 'UTI', nome: 'Plantão A', descricao: null, ativa: true, criadoEm: new Date('2026-01-01T00:00:00Z') };
-function setup(profileCode = 'ADMIN_HOSPITAL', authenticated = true) {
-  const allowed = profileCode === 'ADMIN_HOSPITAL' || profileCode === 'SUPER_ADMIN';
+function setup(profileCode = 'SUPER_ADMIN', authenticated = true) {
+  const allowed = profileCode === 'SUPER_ADMIN';
   const permissionQuery = vi.fn(async (_sql: string, values?: unknown[]) => ({ rows: [{ allowed: allowed && values?.[1] !== undefined }], rowCount: 1 }));
   const service = {
     listar: vi.fn(async (hospitalId: string, filtros: unknown, paginacao: unknown) => ({ data: [equipe], total: 1, page: 1, pageSize: 25, hospitalId, filtros, paginacao })),
@@ -48,7 +48,7 @@ describe('rotas do módulo de equipes', () => {
     expect((await request(h.app).patch('/equipes/31/status').send({ ativa: true })).body.data.ativa).toBe(true);
   });
 
-  it.each(['GESTOR_SETOR', 'OUVIDORIA', 'VISUALIZADOR'])('nega todas as operações administrativas ao perfil %s', async (profile) => {
+  it.each(['ADMIN_SETOR', 'GESTAO', 'OUVIDORIA', 'VISUALIZADOR'])('nega operações hospitalares ao perfil %s', async (profile) => {
     const h = setup(profile);
     expect((await request(h.app).get('/equipes')).status).toBe(403);
     expect((await request(h.app).get('/equipes/31')).status).toBe(403);
@@ -62,7 +62,7 @@ describe('rotas do módulo de equipes', () => {
   });
 
   it('nega chamadas anônimas e não implementa exclusão física', async () => {
-    const h = setup('ADMIN_HOSPITAL', false);
+    const h = setup('SUPER_ADMIN', false);
     expect((await request(h.app).get('/equipes')).status).toBe(401);
     const admin = setup();
     expect((await request(admin.app).delete('/equipes/31')).status).toBe(404);

@@ -8,7 +8,7 @@ import { createAceitarConviteRouter, createUsuariosRouter } from './routes.js';
 
 const principal: AuthPrincipal = {
   userId: '10', name: 'Admin', email: 'admin@example.test', hospitalId: '4',
-  profile: { id: '2', code: 'ADMIN_HOSPITAL', name: 'Admin Hospital' }, sectorIds: [],
+  profile: { id: '1', code: 'SUPER_ADMIN', name: 'Super Admin' }, sectorIds: [],
 };
 
 function setup(granted: string[]) {

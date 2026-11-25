@@ -7,9 +7,9 @@ import type { TurnosService } from './service.js';
 import { createTurnosRouter } from './routes.js';
 
 const turno = { id: '2', nome: 'Tarde', horaInicio: '12:00:00', horaFim: '22:00:00', ativo: true };
-function setup(profile: string | null = 'ADMIN_HOSPITAL') {
+function setup(profile: string | null = 'SUPER_ADMIN') {
   const permissionQuery = vi.fn(async (_sql: string, values?: unknown[]) => {
-    const allowed = ['SUPER_ADMIN', 'ADMIN_HOSPITAL'].includes(profile ?? '') && Boolean(values?.[1]);
+    const allowed = profile === 'SUPER_ADMIN' && Boolean(values?.[1]);
     return { rows: [{ allowed }], rowCount: 1 };
   });
   const service = {
@@ -60,7 +60,7 @@ describe('rotas do módulo de turnos', () => {
       PERMISSIONS.shiftsReadHospital, PERMISSIONS.shiftsCreateHospital,
     ]);
   });
-  it.each(['GESTOR_SETOR', 'OUVIDORIA', 'VISUALIZADOR'])('nega o módulo ao perfil %s', async (profile) => {
+  it.each(['ADMIN_SETOR', 'GESTAO', 'OUVIDORIA', 'VISUALIZADOR'])('nega o módulo ao perfil %s', async (profile) => {
     const h = setup(profile);
     expect((await request(h.app).get('/turnos')).status).toBe(403);
     expect((await request(h.app).post('/turnos').send({ nome: 'Novo', horaInicio: '08:00', horaFim: '09:00' })).status).toBe(403);
