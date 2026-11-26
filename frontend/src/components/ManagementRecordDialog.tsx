@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { createManagementRecord, getManagementProfiles, getManagementRecords, updateManagementRecord, updateManagementUserProfile } from '../api/client';
+import { createManagementRecord, getManagementProfiles, getManagementRecords, getQuestionSurveyOptions, updateManagementRecord, updateManagementUserProfile } from '../api/client';
 import type { ManagementProfile, ManagementResource } from '../api/contracts';
 import { Button } from './Button';
 
-export type ManagementSection = 'Setores' | 'Equipes' | 'Turnos' | 'Escalas' | 'Usuários';
+export type ManagementSection = 'Setores' | 'Equipes' | 'Turnos' | 'Escalas' | 'Usuários' | 'Pesquisas' | 'Perguntas';
 
 const resourceBySection: Record<ManagementSection, ManagementResource> = {
   Setores: 'setores', Equipes: 'equipes', Turnos: 'turnos', Escalas: 'escalas', Usuários: 'usuarios',
+  Pesquisas: 'pesquisas', Perguntas: 'perguntas',
 };
 
 type Option = { id: string; nome: string };
@@ -18,6 +19,7 @@ export function ManagementRecordDialog({ section, onClose, onCreated, record }: 
   const [teams, setTeams] = useState<Option[]>([]);
   const [shifts, setShifts] = useState<Option[]>([]);
   const [profiles, setProfiles] = useState<ManagementProfile[]>([]);
+  const [surveys, setSurveys] = useState<Option[]>([]);
   const [loadingOptions, setLoadingOptions] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -28,19 +30,22 @@ export function ManagementRecordDialog({ section, onClose, onCreated, record }: 
       const needsSectors = section === 'Equipes' || section === 'Escalas';
       const needsTeams = section === 'Escalas';
       const needsShifts = section === 'Escalas';
-      setLoadingOptions(needsSectors || section === 'Usuários');
+      const needsSurveyOptions = section === 'Perguntas';
+      setLoadingOptions(needsSectors || section === 'Usuários' || section === 'Pesquisas' || needsSurveyOptions);
       try {
-        const [sectorResult, teamResult, shiftResult, profileResult] = await Promise.all([
-          needsSectors ? getManagementRecords('setores', 1, 100) : Promise.resolve(null),
+        const [sectorResult, teamResult, shiftResult, profileResult, surveyResult] = await Promise.all([
+          needsSectors || section === 'Pesquisas' ? getManagementRecords('setores', 1, 100) : Promise.resolve(null),
           needsTeams ? getManagementRecords('equipes', 1, 100) : Promise.resolve(null),
           needsShifts ? getManagementRecords('turnos', 1, 100) : Promise.resolve(null),
           section === 'Usuários' ? getManagementProfiles() : Promise.resolve(null),
+          needsSurveyOptions ? getQuestionSurveyOptions() : Promise.resolve(null),
         ]);
         if (!active) return;
         setSectors((sectorResult?.data ?? []).filter((item) => item.ativo !== false).map((item) => ({ id: String(item.id), nome: String(item.nome) })));
         setTeams((teamResult?.data ?? []).filter((item) => item.ativa !== false).map((item) => ({ id: String(item.id), nome: String(item.nome) })));
         setShifts((shiftResult?.data ?? []).filter((item) => item.ativo !== false).map((item) => ({ id: String(item.id), nome: String(item.nome) })));
         setProfiles(profileResult ?? []);
+        setSurveys((surveyResult ?? []).map((item) => ({ id: item.id, nome: item.nome })));
       } catch (requestError) {
         if (active) setError(requestError instanceof Error ? requestError.message : 'Não foi possível carregar as opções.');
       } finally {
@@ -60,6 +65,8 @@ export function ManagementRecordDialog({ section, onClose, onCreated, record }: 
     else if (section === 'Equipes') payload = { setorId: text('setorId'), nome: text('nome'), descricao: text('descricao') || null };
     else if (section === 'Turnos') payload = { nome: text('nome'), horaInicio: text('horaInicio'), horaFim: text('horaFim') };
     else if (section === 'Escalas') payload = { setorId: text('setorId'), equipeId: text('equipeId'), turnoId: text('turnoId'), data: text('data'), observacoes: text('observacoes') || null };
+    else if (section === 'Pesquisas') payload = { setorId: text('setorId'), titulo: text('titulo'), descricao: text('descricao') || null };
+    else if (section === 'Perguntas') payload = { pesquisaId: text('pesquisaId'), texto: text('texto'), etapa: text('etapa'), tipoResposta: text('tipoResposta'), obrigatoria: values.get('obrigatoria') === 'on', ordem: Number(text('ordem')) };
     else payload = record
       ? { nome: text('nome'), email: text('email') }
       : { nome: text('nome'), email: text('email'), perfilId: text('perfilId') };
@@ -82,8 +89,8 @@ export function ManagementRecordDialog({ section, onClose, onCreated, record }: 
     }
   };
 
-  const selectField = (label: string, name: string, options: Option[]) => (
-    <label className="field-label">{label}<select name={name} required defaultValue={String(record?.[name] ?? '')}><option value="" disabled>Selecione</option>{options.map((option) => <option key={option.id} value={option.id}>{option.nome}</option>)}</select></label>
+  const selectField = (label: string, name: string, options: Option[], defaultValue?: unknown) => (
+    <label className="field-label">{label}<select name={name} required defaultValue={String(defaultValue ?? record?.[name] ?? '')}><option value="" disabled>Selecione</option>{options.map((option) => <option key={option.id} value={option.id}>{option.nome}</option>)}</select></label>
   );
 
   return <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) onClose(); }}>
@@ -110,6 +117,27 @@ export function ManagementRecordDialog({ section, onClose, onCreated, record }: 
           {selectField('Setor', 'setorId', sectors)}{selectField('Equipe', 'equipeId', teams)}{selectField('Turno', 'turnoId', shifts)}
           <label className="field-label">Data<input name="data" type="date" required defaultValue={String(record?.data ?? '').slice(0, 10)} /></label>
           <label className="field-label">Observações<textarea name="observacoes" rows={3} maxLength={4000} defaultValue={String(record?.observacoes ?? '')} /></label>
+        </>}
+        {section === 'Pesquisas' && <>
+          {selectField('Setor', 'setorId', sectors, record?.setor_id)}
+          <label className="field-label">Título da pesquisa<input name="titulo" required maxLength={150} autoFocus defaultValue={String(record?.titulo ?? '')} /></label>
+          <label className="field-label">Descrição<textarea name="descricao" rows={3} maxLength={5000} defaultValue={String(record?.descricao ?? '')} /></label>
+          {!record && <p className="integration-note">A pesquisa será criada inativa. Depois de revisar as perguntas, ative-a na lista.</p>}
+        </>}
+        {section === 'Perguntas' && <>
+          {selectField('Pesquisa', 'pesquisaId', surveys, record?.pesquisa_id)}
+          <label className="field-label">Texto da pergunta<textarea name="texto" rows={3} required maxLength={2000} autoFocus defaultValue={String(record?.texto ?? '')} /></label>
+          {selectField('Etapa', 'etapa', [
+            { id: 'GERAL', nome: 'Geral' }, { id: 'RECEPCAO', nome: 'Recepção' },
+            { id: 'TRIAGEM', nome: 'Triagem' }, { id: 'ENFERMAGEM', nome: 'Enfermagem' }, { id: 'MEDICO', nome: 'Médico' },
+          ])}
+          <label className="field-label">Tipo de resposta<select name="tipoResposta" required defaultValue={String(record?.tipo_resposta ?? 'TEXTO')}>
+            <option value="TEXTO">Texto livre</option><option value="SIM_NAO">Sim ou não</option>
+            <option value="OPCAO">Opção (texto livre nesta versão)</option>
+            <option value="NOTA" disabled={!record}>Nota (depende da migration de escalas)</option>
+          </select></label>
+          <label className="field-label">Posição na pesquisa<input name="ordem" type="number" min="1" max="1000" step="1" required defaultValue={String(record?.ordem ?? 1)} /></label>
+          <label className="form-check"><input name="obrigatoria" type="checkbox" defaultChecked={record ? Boolean(record.obrigatoria) : true} /><span>Resposta obrigatória</span></label>
         </>}
         {section === 'Usuários' && <>
           <label className="field-label">Nome completo<input name="nome" required maxLength={150} autoFocus defaultValue={String(record?.nome ?? '')} /></label>

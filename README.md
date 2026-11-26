@@ -18,6 +18,7 @@ Digitalizar pesquisas de satisfação de pacientes e apoiar a análise de indica
 - Fluxo separado de Ouvidoria com tipo, relato, telefone, consentimento e protocolo.
 - Login da equipe conectado à API, com sessão, proteção CSRF e primeiro acesso por convite.
 - Painel conectado às listagens protegidas de setores, equipes, turnos, escalas e usuários.
+- Cadastro e edição de pesquisas (SUPER_ADMIN) e perguntas (SUPER_ADMIN/ADMIN_SETOR no escopo associado) conectados à API.
 - Métricas, administração de manifestações e alguns fluxos de criação/edição ainda estão em desenvolvimento.
 
 ## Tecnologias e estrutura
@@ -95,6 +96,8 @@ Consulte [Perfis oficiais e autorizacao](docs/perfis-e-permissoes.md) para regra
 | `GET /api/auth/me` | Consulta a sessão atual |
 | `POST /api/auth/logout` | Encerra a sessão |
 | `POST /api/usuarios/convites/aceitar` | Define senha e ativa convite válido |
+| `/api/pesquisas` | CRUD e ativação de pesquisas, restrito ao SUPER_ADMIN e ao hospital da sessão |
+| `/api/perguntas` | CRUD e ativação de perguntas; ADMIN_SETOR fica limitado aos setores associados |
 | `/api/setores`, `/api/equipes`, `/api/turnos`, `/api/escalas`, `/api/usuarios` | Rotas de gestão protegidas por sessão; alterações exigem CSRF |
 
 O endpoint anônimo de pesquisa não aceita dados de contato. A Ouvidoria é um envio identificável separado e não é associada à resposta anônima. O limiar de NPS que apresenta a Ouvidoria deve seguir o roteiro aprovado pelo cliente.
@@ -105,9 +108,9 @@ Consulte [Perfis oficiais e autorização](docs/perfis-e-permissoes.md) para reg
 
 ## Estado do banco e limitações
 
-A disponibilidade das rotas depende de schema, migrations e credenciais PostgreSQL preparados pela dupla responsável pelo banco. A migration 008 de escopo hospitalar da Ouvidoria está em `database/migrations`; a proposta separada de pesquisas/escalas continua em `database/proposals` e não foi promovida. Confira [`database/migrations/README.md`](database/migrations/README.md), [`database/proposals/008_escalas_pesquisas.md`](database/proposals/008_escalas_pesquisas.md) e [`docs/API_PUBLICA_PENDENCIAS.md`](docs/API_PUBLICA_PENDENCIAS.md); não aplique propostas diretamente em banco compartilhado.
+A disponibilidade das rotas depende de schema, migrations e credenciais PostgreSQL preparados pela dupla responsável pelo banco. A migration 008 de escopo hospitalar da Ouvidoria está em `database/migrations`; a proposta separada de pesquisas/escalas continua em `database/proposals` e não foi promovida. As rotas públicas de carregar e enviar pesquisas dependem dos objetos dessa proposta; não estão prontas em um banco que tenha somente o baseline e as migrations oficiais atuais. Confira [`database/migrations/README.md`](database/migrations/README.md), [`database/proposals/008_escalas_pesquisas.md`](database/proposals/008_escalas_pesquisas.md) e [`docs/API_PUBLICA_PENDENCIAS.md`](docs/API_PUBLICA_PENDENCIAS.md); não aplique propostas diretamente em banco compartilhado.
 
-O schema atual não oferece uma lista de opções para perguntas do tipo `OPCAO`; por enquanto, o frontend envia esse valor como texto. A forma de cadastrar opções precisa ser definida antes de usar esse tipo em produção. O envio de convites depende de configuração de entrega de e-mail. A integração ponta a ponta ainda requer validação com banco preparado e dados sintéticos. A Ouvidoria autenticada e os indicadores agora têm rotas protegidas por perfil; a migration 008 associa cada manifestação ao hospital para isolamento entre hospitais.
+O schema atual não oferece uma lista de opções para perguntas do tipo `OPCAO`; por enquanto, o frontend envia esse valor como texto. A criação de novas perguntas `NOTA` fica bloqueada até a migration de escalas ser aprovada e aplicada em ambiente apropriado. O envio de convites depende da configuração de um provedor SMTP. A integração ponta a ponta ainda requer validação com banco preparado e dados sintéticos. A Ouvidoria autenticada e os indicadores têm rotas protegidas por perfil; a migration oficial 008 associa cada manifestação ao hospital para isolamento entre hospitais.
 
 ## Documentação e gestão do projeto
 

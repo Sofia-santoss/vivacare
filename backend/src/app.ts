@@ -34,6 +34,7 @@ import { EscalasService } from './escalas/service.js';
 import { createEscalasRouter } from './escalas/routes.js';
 import { createSubmissaoPesquisaRouter } from './pesquisas/submissaoRoutes.js';
 import { createIndicadoresRouter } from './pesquisas/indicadoresRoutes.js';
+import { createSurveyManagementRouter } from './pesquisas/managementRoutes.js';
 import { createPublicIpRateLimit, createPublicSubmissionRateLimit } from './pesquisas/publicSubmissionRateLimit.js';
 
 export const app = express();
@@ -111,6 +112,7 @@ protectedApi.use('/turnos', createTurnosRouter(pool, new TurnosService(new Turno
 protectedApi.use('/escalas', createEscalasRouter(pool, new EscalasService(new EscalasRepository(pool))));
 protectedApi.use('/usuarios', createUsuariosRouter(pool, usuariosRepository));
 protectedApi.use('/indicadores', createIndicadoresRouter(pool));
+protectedApi.use(createSurveyManagementRouter(pool));
 protectedApi.use('/ouvidoria', createOmbudsmanManagementRouter(pool));
 app.use('/api', createAuthenticationMiddleware(authOptions), createCsrfProtection(authOptions), protectedApi);
 app.get('/health', async (_req, res) => {

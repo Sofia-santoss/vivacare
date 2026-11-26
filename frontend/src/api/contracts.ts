@@ -62,7 +62,7 @@ export interface StaffSessionResult {
   user: StaffUser | null;
 }
 
-export type ManagementResource = 'setores' | 'equipes' | 'turnos' | 'escalas' | 'usuarios';
+export type ManagementResource = 'setores' | 'equipes' | 'turnos' | 'escalas' | 'usuarios' | 'pesquisas' | 'perguntas';
 
 export interface ManagementListResult {
   data: Record<string, unknown>[];
@@ -73,6 +73,13 @@ export interface ManagementProfile {
   id: string;
   code: string;
   name: string;
+}
+
+export interface ManagementSurveyOption {
+  id: string;
+  nome: string;
+  setor_id: string;
+  setor: string;
 }
 
 export type ManifestationType = 'ELOGIO' | 'RECLAMACAO' | 'SUGESTAO';
