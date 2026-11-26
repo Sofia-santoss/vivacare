@@ -121,6 +121,11 @@ export async function getManagementProfiles(): Promise<ManagementProfile[]> {
   return result.data;
 }
 
+export async function getQuestionSurveyOptions(): Promise<import('./contracts').ManagementSurveyOption[]> {
+  const result = await request<{ data: import('./contracts').ManagementSurveyOption[] }>('/perguntas/pesquisas');
+  return result.data;
+}
+
 export function createManagementRecord<T extends Record<string, unknown>>(
   resource: ManagementResource,
   payload: T,
@@ -141,7 +146,7 @@ export function updateManagementStatus(
   id: string,
   active: boolean,
 ): Promise<unknown> {
-  const field = resource === 'equipes' ? 'ativa' : 'ativo';
+  const field = resource === 'equipes' || resource === 'pesquisas' || resource === 'perguntas' ? 'ativa' : 'ativo';
   return request(`/${resource}/${encodeURIComponent(id)}/status`, {
     method: 'PATCH', body: JSON.stringify({ [field]: active }),
   });

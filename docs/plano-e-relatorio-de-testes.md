@@ -48,11 +48,14 @@ Verificar validações, contratos HTTP, autenticação/autorização, privacidad
 
 | Data | Escopo/comando | Resultado | Observações |
 |---|---|---|---|
+| 26/11/2026 | Backend (`npm test`) | Aprovado: 51 arquivos, 343 testes. | Suítes unitárias/API sem banco; as integrações PostgreSQL são excluídas por padrão. |
+| 26/11/2026 | Frontend (`npm test`) | Aprovado: 7 testes. | Validações de formulário e credenciais. |
+| 26/11/2026 | Typecheck/build backend e typecheck/build frontend | Aprovados. | Executados após conectar a Visão geral e o CRUD de pesquisas/perguntas às APIs. |
 | 24/11/2026 | Typecheck frontend (`npm run typecheck` em `frontend`) | Aprovado em execução anterior desta sessão de trabalho. | Repetir após integração da documentação se houver mudanças de código. |
 | 24/11/2026 | Typecheck backend (`npm run typecheck` em `backend`) | Aprovado em execução anterior desta sessão de trabalho. | Nenhum arquivo do backend foi alterado nesta tarefa documental. |
+| 26/11/2026 | Integração de migrations (`npm run test:db`) | Aprovado: 2 testes, código de saída 0, PostgreSQL local 18.4. | Resultado informado pela dupla; variáveis temporárias removidas. O banco descartável ficou aguardando exclusão. |
 | 24/11/2026 | Tentativa de `npm test` nas suítes frontend/backend | Não executado. | A revisão automática do ambiente recusou a execução sem apresentar motivo; nenhum teste foi iniciado. Não há cobertura medida nesta versão do relatório. |
-| Pendente | Testes unitários/API sem banco | — | Executar quando a política do ambiente permitir. |
-| Pendente | Testes de integração PostgreSQL | — | Aguardar banco descartável preparado pela responsável pelo banco. |
+| Pendente | Integrações PostgreSQL de autenticação, setores, usuários e submissão pública | — | Executar os comandos guardados em banco local descartável. `test:db` cobre somente a cadeia de migrations. |
 | Pendente | Fluxo ponta a ponta e acessibilidade | — | Registrar navegador, dados sintéticos, evidências e defeitos corrigidos. |
 
 **Cobertura:** não há relatório numérico registrado. O `package.json` não declara atualmente um provider de cobertura Vitest. Definir/instalar e executar cobertura só depois de combinar dependência e comando com a dupla.

@@ -18,6 +18,8 @@ tags:
   - name: Equipes
   - name: Turnos
   - name: Escalas
+  - name: Pesquisas
+  - name: Perguntas
   - name: Usuários
 paths:
   /health:
@@ -681,6 +683,183 @@ paths:
       responses:
         '200': { $ref: '#/components/responses/Registro' }
         '403': { $ref: '#/components/responses/Erro' }
+  /api/pesquisas:
+    get:
+      tags: [Pesquisas]
+      operationId: listarPesquisasGerenciaveis
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200': { $ref: '#/components/responses/Lista' }
+        '401': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+    post:
+      tags: [Pesquisas]
+      operationId: criarPesquisa
+      security: [{ sessionCookie: [], csrfHeader: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [setorId, titulo]
+              properties:
+                setorId: { type: string, pattern: '^[1-9][0-9]*$' }
+                titulo: { type: string, minLength: 1, maxLength: 150 }
+                descricao: { type: [string, 'null'], maxLength: 5000 }
+      responses:
+        '201': { $ref: '#/components/responses/Registro' }
+        '400': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+  /api/pesquisas/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    patch:
+      tags: [Pesquisas]
+      operationId: atualizarPesquisa
+      security: [{ sessionCookie: [], csrfHeader: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [setorId, titulo]
+              properties:
+                setorId: { type: string, pattern: '^[1-9][0-9]*$' }
+                titulo: { type: string, minLength: 1, maxLength: 150 }
+                descricao: { type: [string, 'null'], maxLength: 5000 }
+      responses:
+        '200': { $ref: '#/components/responses/Registro' }
+        '400': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+        '404': { $ref: '#/components/responses/Erro' }
+  /api/pesquisas/{id}/status:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    patch:
+      tags: [Pesquisas]
+      operationId: alterarStatusPesquisa
+      security: [{ sessionCookie: [], csrfHeader: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [ativa]
+              properties:
+                ativa: { type: boolean }
+      responses:
+        '204': { description: Status atualizado }
+        '403': { $ref: '#/components/responses/Erro' }
+        '404': { $ref: '#/components/responses/Erro' }
+        '409': { $ref: '#/components/responses/Erro' }
+  /api/perguntas:
+    get:
+      tags: [Perguntas]
+      operationId: listarPerguntasGerenciaveis
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: pesquisaId
+          in: query
+          schema: { type: string, pattern: '^[1-9][0-9]*$' }
+      responses:
+        '200': { $ref: '#/components/responses/Lista' }
+        '400': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+    post:
+      tags: [Perguntas]
+      operationId: criarPergunta
+      security: [{ sessionCookie: [], csrfHeader: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [pesquisaId, texto, etapa, tipoResposta, obrigatoria, ordem]
+              properties:
+                pesquisaId: { type: string, pattern: '^[1-9][0-9]*$' }
+                texto: { type: string, minLength: 1, maxLength: 2000 }
+                etapa: { type: string, enum: [GERAL, RECEPCAO, TRIAGEM, ENFERMAGEM, MEDICO] }
+                tipoResposta: { type: string, enum: [TEXTO, NOTA, OPCAO, SIM_NAO] }
+                obrigatoria: { type: boolean }
+                ordem: { type: integer, minimum: 1, maximum: 1000 }
+      responses:
+        '201': { $ref: '#/components/responses/Registro' }
+        '400': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+        '404': { $ref: '#/components/responses/Erro' }
+        '409': { $ref: '#/components/responses/Erro' }
+  /api/perguntas/pesquisas:
+    get:
+      tags: [Perguntas]
+      operationId: listarPesquisasParaPerguntas
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Lista' }
+        '403': { $ref: '#/components/responses/Erro' }
+  /api/perguntas/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    patch:
+      tags: [Perguntas]
+      operationId: atualizarPergunta
+      security: [{ sessionCookie: [], csrfHeader: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [pesquisaId, texto, etapa, tipoResposta, obrigatoria, ordem]
+              properties:
+                pesquisaId: { type: string, pattern: '^[1-9][0-9]*$' }
+                texto: { type: string, minLength: 1, maxLength: 2000 }
+                etapa: { type: string, enum: [GERAL, RECEPCAO, TRIAGEM, ENFERMAGEM, MEDICO] }
+                tipoResposta: { type: string, enum: [TEXTO, NOTA, OPCAO, SIM_NAO] }
+                obrigatoria: { type: boolean }
+                ordem: { type: integer, minimum: 1, maximum: 1000 }
+      responses:
+        '200': { $ref: '#/components/responses/Registro' }
+        '400': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+        '404': { $ref: '#/components/responses/Erro' }
+        '409': { $ref: '#/components/responses/Erro' }
+  /api/perguntas/{id}/status:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    patch:
+      tags: [Perguntas]
+      operationId: alterarStatusPergunta
+      security: [{ sessionCookie: [], csrfHeader: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [ativa]
+              properties:
+                ativa: { type: boolean }
+      responses:
+        '204': { description: Status atualizado }
+        '403': { $ref: '#/components/responses/Erro' }
+        '404': { $ref: '#/components/responses/Erro' }
   /api/usuarios:
     get:
       tags: [Usuários]

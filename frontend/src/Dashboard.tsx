@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { getIndicators } from './api/client';
 import { OmbudsmanWorkspace } from './OmbudsmanWorkspace';
 import { TvWall } from './TvWall';
@@ -26,7 +26,7 @@ type DashboardProps = { onBack: () => void; user: StaffUser | null; previewMode:
 
 export function Dashboard({ onBack, user, previewMode }: DashboardProps) {
   const roleSections: Record<string, Section[]> = {
-    ADMIN_SETOR: ['Indicadores', 'Setores', 'Equipes', 'Escalas'],
+    ADMIN_SETOR: ['Indicadores', 'Perguntas', 'Setores', 'Equipes', 'Escalas'],
     GESTAO: ['Indicadores'], OUVIDORIA: ['Ouvidoria'], VISUALIZADOR: ['Indicadores'],
   };
   const allowedNavigation = previewMode || !user || user.role === 'SUPER_ADMIN'
@@ -34,15 +34,11 @@ export function Dashboard({ onBack, user, previewMode }: DashboardProps) {
   const initialSection = previewMode || !user || user.role === 'SUPER_ADMIN' ? 'Visão geral'
     : user.role === 'OUVIDORIA' ? 'Ouvidoria' : 'Indicadores';
   const [active, setActive] = useState<Section>(initialSection);
-  const [period, setPeriod] = useState('Últimos 30 dias');
-  const [sector, setSector] = useState('Todos os setores');
-  const [shift, setShift] = useState('Todos os turnos');
-  const [applied, setApplied] = useState(false);
   const [showTvWall, setShowTvWall] = useState(false);
   const [form, setForm] = useState<Section | null>(null);
   const [notice, setNotice] = useState('');
   const [drafts, setDrafts] = useState<Record<string, DraftRecord[]>>({});
-  const apiSections = ['Setores', 'Equipes', 'Turnos', 'Escalas', 'Usuários'] as const;
+  const apiSections = ['Setores', 'Equipes', 'Turnos', 'Escalas', 'Usuários', 'Pesquisas', 'Perguntas'] as const;
   const isApiSection = (apiSections as readonly string[]).includes(active);
 
   const saveDraft = (event: FormEvent<HTMLFormElement>) => {
@@ -75,30 +71,16 @@ export function Dashboard({ onBack, user, previewMode }: DashboardProps) {
         <button className="return-survey" onClick={onBack}>← Pesquisa do paciente</button>
       </aside>
       <section className="dashboard-content">
-        <div className="dashboard-heading"><div><div className="eyebrow">PAINEL DE GESTÃO</div><h1>{active}</h1><p>{previewMode ? 'Prévia visual · não consulta nem altera dados' : 'Sessão autenticada · dados reais ainda dependem das APIs do painel'}</p></div><div className="dashboard-actions"><span className="refresh-label">{previewMode ? 'Prévia local' : 'Sessão válida'}</span><button className="tvwall-open-button" onClick={() => setShowTvWall(true)}>◱ TV Wall</button></div></div>
+        <div className="dashboard-heading"><div><div className="eyebrow">PAINEL DE GESTÃO</div><h1>{active}</h1><p>{previewMode ? 'Prévia visual · não consulta nem altera dados' : 'Sessão autenticada · dados carregados das APIs do painel'}</p></div><div className="dashboard-actions"><span className="refresh-label">{previewMode ? 'Prévia local' : 'Sessão válida'}</span><button className="tvwall-open-button" onClick={() => setShowTvWall(true)}>◱ TV Wall</button></div></div>
         {notice && <p className="inline-notice" role="status">{notice}</p>}
-        {!isApiSection && active !== 'Ouvidoria' && active !== 'Indicadores' && active !== 'Configurações' && <div className="filter-bar">
-          <label>Setor<select value={sector} onChange={(e) => setSector(e.target.value)}><option>Todos os setores</option><option>Recepção</option><option>Enfermagem</option><option>Pronto Atendimento</option><option>Internação</option><option>Farmácia</option></select></label>
-          <label>Período<select value={period} onChange={(e) => setPeriod(e.target.value)}><option>Últimos 30 dias</option><option>Últimos 7 dias</option><option>Este mês</option><option>Este ano</option></select></label>
-          <label>Turno<select value={shift} onChange={(e) => setShift(e.target.value)}><option>Todos os turnos</option><option>Manhã</option><option>Tarde</option><option>Noite</option></select></label>
-          <Button className="filter-button" onClick={() => { setApplied(true); setNotice('Filtros prontos. Os resultados aparecerão quando a API estiver conectada.'); }}>Aplicar filtros</Button>
-        </div>}
-        {active === 'Ouvidoria' ? <OmbudsmanWorkspace previewMode={previewMode} /> : active === 'Visão geral' ? <Overview period={period} sector={sector} shift={shift} applied={applied} /> : active === 'Indicadores' ? <Indicators previewMode={previewMode} /> : !previewMode && isApiSection ? <ManagementApiList section={active as (typeof apiSections)[number]} /> : active === 'Pesquisas' || active === 'Perguntas' || isApiSection ? <ListSection title={active === 'Perguntas' ? 'Perguntas do setor' : active === 'Usuários' ? 'Usuários e permissões' : active === 'Setores' || active === 'Equipes' || active === 'Turnos' || active === 'Escalas' ? active : 'Pesquisas'} description={active === 'Perguntas' ? 'Gerencie perguntas e sua obrigatoriedade na pesquisa.' : active === 'Usuários' ? 'Acesso administrativo por perfil e setor.' : 'Prévia local da área de gestão.'} records={drafts[active] ?? []} onCreate={() => setForm(active)} onRemove={(id) => removeDraft(active, id)} /> : <Settings onSave={() => setNotice('Preferências atualizadas apenas nesta visualização. A API ainda não está conectada.')} />}
+        {active === 'Ouvidoria' ? <OmbudsmanWorkspace previewMode={previewMode} /> : active === 'Visão geral' ? <Overview previewMode={previewMode} /> : active === 'Indicadores' ? <Indicators previewMode={previewMode} /> : !previewMode && isApiSection ? <ManagementApiList section={active as (typeof apiSections)[number]} /> : active === 'Pesquisas' || active === 'Perguntas' || isApiSection ? <ListSection title={active === 'Perguntas' ? 'Perguntas do setor' : active === 'Usuários' ? 'Usuários e permissões' : active === 'Setores' || active === 'Equipes' || active === 'Turnos' || active === 'Escalas' ? active : 'Pesquisas'} description={active === 'Perguntas' ? 'Gerencie perguntas e sua obrigatoriedade na pesquisa.' : active === 'Usuários' ? 'Acesso administrativo por perfil e setor.' : 'Prévia local da área de gestão.'} records={drafts[active] ?? []} onCreate={() => setForm(active)} onRemove={(id) => removeDraft(active, id)} /> : <Settings onSave={() => setNotice('Preferências atualizadas apenas nesta visualização. A API ainda não está conectada.')} />}
         {form && <FormDialog section={form} onClose={() => setForm(null)} onSubmit={saveDraft} />}
       </section>
     </div>
   </main>;
 }
-function Metric({ title, icon }: { title: string; icon: string }) {
-  return <article className="dashboard-card metric-card"><div className="metric-top"><span>{title}</span><span className="metric-icon" aria-hidden="true">{icon}</span></div><strong>—</strong><small>Aguardando dados da API</small></article>;
-}
-
-function Overview({ period, sector, shift, applied }: { period: string; sector: string; shift: string; applied: boolean }) {
-  return <>
-    <div className="metric-grid"><Metric title="NPS geral" icon="♡" /><Metric title="Satisfação média" icon="◷" /><Metric title="Total de avaliações" icon="▣" /><Metric title="Manifestações abertas" icon="♧" /></div>
-    <div className="chart-grid"><Chart title="Evolução do NPS" subtitle={period} kind="line" /><Chart title="NPS por setor" subtitle="Comparativo do período" kind="bars" /><Chart title="Avaliações por turno" subtitle="Distribuição das respostas" kind="line" /><Chart title="Volume por período" subtitle="Avaliações recebidas" kind="line" /></div>
-    <article className="dashboard-card empty-period"><div className="empty-icon" aria-hidden="true">▱</div><strong>{applied ? 'Sem resultados para os filtros selecionados' : 'Aguardando dados do período'}</strong><p>Os indicadores serão exibidos quando a API retornar respostas para este período.</p><span>{sector} · {shift} · {period}</span></article>
-  </>;
+function Overview({ previewMode }: { previewMode: boolean }) {
+  return <Indicators previewMode={previewMode} />;
 }
 
 function Indicators({ previewMode }: { previewMode: boolean }) {

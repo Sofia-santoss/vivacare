@@ -4,10 +4,11 @@ import type { ManagementListResult, ManagementResource } from '../api/contracts'
 import { Button } from './Button';
 import { ManagementRecordDialog } from './ManagementRecordDialog';
 
-type ManagementSection = 'Setores' | 'Equipes' | 'Turnos' | 'Escalas' | 'Usuários';
+type ManagementSection = 'Setores' | 'Equipes' | 'Turnos' | 'Escalas' | 'Usuários' | 'Pesquisas' | 'Perguntas';
 
 const resourceBySection: Record<ManagementSection, ManagementResource> = {
   Setores: 'setores', Equipes: 'equipes', Turnos: 'turnos', Escalas: 'escalas', Usuários: 'usuarios',
+  Pesquisas: 'pesquisas', Perguntas: 'perguntas',
 };
 
 const columnsBySection: Record<ManagementSection, Array<{ label: string; path: string }>> = {
@@ -16,6 +17,8 @@ const columnsBySection: Record<ManagementSection, Array<{ label: string; path: s
   Turnos: [{ label: 'Turno', path: 'nome' }, { label: 'Início', path: 'horaInicio' }, { label: 'Fim', path: 'horaFim' }, { label: 'Status', path: 'ativo' }],
   Escalas: [{ label: 'Data', path: 'data' }, { label: 'Setor', path: 'setorNome' }, { label: 'Equipe', path: 'equipeNome' }, { label: 'Turno', path: 'turnoNome' }, { label: 'Status', path: 'status' }],
   Usuários: [{ label: 'Nome', path: 'nome' }, { label: 'E-mail', path: 'email' }, { label: 'Perfil', path: 'perfil.nome' }, { label: 'Convite', path: 'convite' }, { label: 'Status', path: 'ativo' }],
+  Pesquisas: [{ label: 'Título', path: 'titulo' }, { label: 'Setor', path: 'setor' }, { label: 'Código público', path: 'codigo_publico' }, { label: 'Status', path: 'ativa' }],
+  Perguntas: [{ label: 'Pergunta', path: 'texto' }, { label: 'Pesquisa', path: 'pesquisa_titulo' }, { label: 'Setor', path: 'setor' }, { label: 'Etapa', path: 'etapa' }, { label: 'Tipo', path: 'tipo_resposta' }, { label: 'Ordem', path: 'ordem' }, { label: 'Status', path: 'ativa' }],
 };
 
 function valueAt(record: Record<string, unknown>, path: string): unknown {
@@ -88,7 +91,8 @@ export function ManagementApiList({ section }: { section: ManagementSection }) {
     try {
       if (isSchedule) await cancelManagementSchedule(id);
       else {
-        const active = Boolean(record[section === 'Equipes' ? 'ativa' : 'ativo']);
+        const activeField = section === 'Equipes' || section === 'Pesquisas' || section === 'Perguntas' ? 'ativa' : 'ativo';
+        const active = Boolean(record[activeField]);
         await updateManagementStatus(resource, id, !active);
       }
       setReloadKey((value) => value + 1);
@@ -110,8 +114,10 @@ export function ManagementApiList({ section }: { section: ManagementSection }) {
         <p className="draft-label">{total} registro{total === 1 ? '' : 's'} no total</p>
         <div className="dashboard-card management-records-wrap"><table className="management-records"><thead><tr>{columns.map((column) => <th key={column.path}>{column.label}</th>)}<th>Ação</th></tr></thead>
           <tbody>{result.data.map((record, index) => {
-            const inactive = section === 'Escalas' ? record.status === 'CANCELADA' : record[section === 'Equipes' ? 'ativa' : 'ativo'] === false;
-            return <tr key={String(record.id ?? index)}>{columns.map((column) => <td key={column.path}>{displayValue(valueAt(record, column.path))}</td>)}<td><button type="button" className="row-action" onClick={() => setEditingRecord(record)}>Editar</button>{' '}<button type="button" className="row-action" disabled={inactive || savingId === String(record.id)} onClick={() => void changeRecordStatus(record)}>{savingId === String(record.id) ? 'Salvando...' : section === 'Escalas' ? 'Cancelar escala' : inactive ? 'Inativo' : 'Desativar'}</button></td></tr>;
+            const activeField = section === 'Equipes' || section === 'Pesquisas' || section === 'Perguntas' ? 'ativa' : 'ativo';
+            const active = Boolean(record[activeField]);
+            const cancelled = section === 'Escalas' && record.status === 'CANCELADA';
+            return <tr key={String(record.id ?? index)}>{columns.map((column) => <td key={column.path}>{displayValue(valueAt(record, column.path))}</td>)}<td><button type="button" className="row-action" onClick={() => setEditingRecord(record)}>Editar</button>{' '}<button type="button" className="row-action" disabled={cancelled || savingId === String(record.id)} onClick={() => void changeRecordStatus(record)}>{savingId === String(record.id) ? 'Salvando...' : section === 'Escalas' ? 'Cancelar escala' : active ? 'Desativar' : 'Ativar'}</button></td></tr>;
           })}</tbody>
         </table></div>
         <div className="management-pagination"><button type="button" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>Anterior</button><span>Página {page} de {totalPages}</span><button type="button" disabled={page >= totalPages} onClick={() => setPage((value) => Math.min(totalPages, value + 1))}>Próxima</button></div>
