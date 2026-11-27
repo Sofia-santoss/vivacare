@@ -1,0 +1,1350 @@
+openapi: 3.1.0
+info:
+  title: VivaCare API
+  version: 0.1.0
+  description: >-
+    Especificação inicial das rotas implementadas no backend do VivaCare.
+    Rotas privadas exigem cookie de sessão e, em operações mutáveis, proteção CSRF.
+    A disponibilidade real depende do schema, migrations e configuração do PostgreSQL.
+servers:
+  - url: https://vivacare-jry5.onrender.com
+    description: Backend publicado no Render
+  - url: http://localhost:3000
+    description: Desenvolvimento local
+tags:
+  - name: Health
+  - name: Pesquisa pública
+  - name: Ouvidoria pública
+  - name: Autenticação
+  - name: Setores
+  - name: Equipes
+  - name: Turnos
+  - name: Escalas
+  - name: Pesquisas
+  - name: Perguntas
+  - name: Usuários
+  - name: Indicadores
+  - name: Ouvidoria
+paths:
+  /health:
+    get:
+      tags: [Health]
+      operationId: healthCheck
+      summary: Verifica a conexão com o PostgreSQL
+      responses:
+        '200':
+          description: Backend e banco disponíveis
+        '503':
+          description: Banco indisponível
+  /api/public/pesquisas/{codigo}:
+    parameters:
+      - $ref: '#/components/parameters/CodigoPesquisa'
+    get:
+      tags: [Pesquisa pública]
+      operationId: obterPesquisaPublica
+      summary: Carrega uma pesquisa ativa por slug de setor ou UUID
+      responses:
+        '200':
+          description: Pesquisa e perguntas ativas ordenadas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PesquisaPublica'
+        '400':
+          $ref: '#/components/responses/Erro'
+        '404':
+          $ref: '#/components/responses/Erro'
+        '409':
+          $ref: '#/components/responses/Erro'
+        '503':
+          $ref: '#/components/responses/Erro'
+  /api/public/pesquisas/{codigo}/respostas:
+    parameters:
+      - $ref: '#/components/parameters/CodigoPesquisa'
+      - $ref: '#/components/parameters/IdempotencyKey'
+    post:
+      tags: [Pesquisa pública]
+      operationId: enviarRespostaAnonima
+      summary: Salva NPS e respostas sem dados de contato
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RespostaAnonima'
+      responses:
+        '201':
+          description: Resposta criada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultadoSubmissao'
+        '200':
+          description: Conteúdo idêntico já enviado com esta chave
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultadoSubmissao'
+        '400':
+          $ref: '#/components/responses/Erro'
+        '404':
+          $ref: '#/components/responses/Erro'
+        '409':
+          $ref: '#/components/responses/Erro'
+        '429':
+          $ref: '#/components/responses/Erro'
+        '503':
+          $ref: '#/components/responses/Erro'
+  /api/pesquisas/publicas/{codigo}/respostas:
+    parameters:
+      - $ref: '#/components/parameters/CodigoUuid'
+      - $ref: '#/components/parameters/IdempotencyKey'
+    post:
+      tags: [Pesquisa pública]
+      operationId: enviarSubmissaoAnonimaV2
+      summary: Endpoint alternativo de submissão pública em português
+      description: >-
+        Rota usada pelo módulo novo de submissões. Aceita `notaNps` e `respostas`
+        com `perguntaId` e `valor`; não aceita identidade ou contato.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmissaoAnonimaV2'
+      responses:
+        '201':
+          description: Submissão registrada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  respostaId: { type: string }
+                  repetida: { type: boolean }
+        '200':
+          description: Submissão repetida idempotentemente
+        '400':
+          $ref: '#/components/responses/Erro'
+        '404':
+          $ref: '#/components/responses/Erro'
+        '409':
+          $ref: '#/components/responses/Erro'
+        '429':
+          $ref: '#/components/responses/Erro'
+        '503':
+          $ref: '#/components/responses/Erro'
+  /api/public/ouvidoria:
+    parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+    post:
+      tags: [Ouvidoria pública]
+      operationId: criarManifestacaoPublica
+      summary: Envia uma manifestação identificável separada da pesquisa anônima
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ManifestacaoPublica'
+      responses:
+        '201':
+          description: Manifestação recebida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultadoOuvidoria'
+        '200':
+          description: Reenvio idempotente da mesma manifestação
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultadoOuvidoria'
+        '400':
+          $ref: '#/components/responses/Erro'
+        '409':
+          $ref: '#/components/responses/Erro'
+        '429':
+          $ref: '#/components/responses/Erro'
+        '503':
+          $ref: '#/components/responses/Erro'
+  /api/indicadores:
+    get:
+      tags: [Indicadores]
+      operationId: listarIndicadoresNps
+      summary: Lista indicadores NPS agregados por setor, data e turno
+      description: Requer permissão de leitura de indicadores do hospital ou dos setores associados. Só retorna agregados com pelo menos três respostas.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        '200':
+          description: Indicadores e paginação
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/IndicadorNps' }
+                  pagination: { $ref: '#/components/schemas/Paginacao' }
+        '400': { $ref: '#/components/responses/Erro' }
+        '401': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+        '503': { $ref: '#/components/responses/Erro' }
+  /api/ouvidoria/setores:
+    get:
+      tags: [Ouvidoria]
+      operationId: listarSetoresParaClassificacao
+      summary: Lista setores ativos do hospital para classificar manifestações
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Lista' }
+        '401': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+  /api/ouvidoria/manifestacoes:
+    get:
+      tags: [Ouvidoria]
+      operationId: listarManifestacoes
+      summary: Lista manifestações do hospital autenticado
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+        - name: status
+          in: query
+          schema: { type: string, enum: [RECEBIDA, EM_ANALISE, AGUARDANDO_CONTATO, EM_TRATAMENTO, CONCLUIDA, ARQUIVADA] }
+      responses:
+        '200': { $ref: '#/components/responses/Lista' }
+        '400': { $ref: '#/components/responses/Erro' }
+        '401': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+  /api/ouvidoria/manifestacoes/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Ouvidoria]
+      operationId: obterManifestacao
+      summary: Obtém manifestação pertencente ao hospital autenticado
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Registro' }
+        '400': { $ref: '#/components/responses/Erro' }
+        '401': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+        '404': { $ref: '#/components/responses/Erro' }
+  /api/ouvidoria/manifestacoes/{id}/historico:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Ouvidoria]
+      operationId: listarHistoricoManifestacao
+      summary: Lista o histórico auditável da manifestação
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Lista' }
+        '400': { $ref: '#/components/responses/Erro' }
+        '401': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+        '404': { $ref: '#/components/responses/Erro' }
+  /api/ouvidoria/manifestacoes/{id}/classificacao:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    patch:
+      tags: [Ouvidoria]
+      operationId: classificarManifestacao
+      summary: Associa manifestação aberta a um setor do mesmo hospital
+      security: [{ sessionCookie: [], csrfHeader: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [setorId]
+              properties:
+                setorId: { type: string, pattern: '^[1-9][0-9]*$' }
+      responses:
+        '204': { description: Classificação registrada }
+        '400': { $ref: '#/components/responses/Erro' }
+        '401': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+        '404': { $ref: '#/components/responses/Erro' }
+  /api/ouvidoria/manifestacoes/{id}/status:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    patch:
+      tags: [Ouvidoria]
+      operationId: atualizarStatusManifestacao
+      summary: Atualiza o status de manifestação aberta
+      security: [{ sessionCookie: [], csrfHeader: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [status]
+              properties:
+                status: { type: string, enum: [EM_ANALISE, AGUARDANDO_CONTATO, EM_TRATAMENTO] }
+      responses:
+        '204': { description: Status atualizado }
+        '400': { $ref: '#/components/responses/Erro' }
+        '401': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+        '404': { $ref: '#/components/responses/Erro' }
+  /api/ouvidoria/manifestacoes/{id}/tentativas:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [Ouvidoria]
+      operationId: registrarTentativaContato
+      summary: Registra tentativa de contato no histórico
+      security: [{ sessionCookie: [], csrfHeader: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [descricao, contatoRealizado]
+              properties:
+                descricao: { type: string, minLength: 1, maxLength: 1000 }
+                contatoRealizado: { type: boolean }
+      responses:
+        '201': { description: Tentativa registrada }
+        '400': { $ref: '#/components/responses/Erro' }
+        '401': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+        '404': { $ref: '#/components/responses/Erro' }
+  /api/ouvidoria/manifestacoes/{id}/conclusao:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [Ouvidoria]
+      operationId: concluirManifestacao
+      summary: Conclui manifestação aberta e registra resposta final
+      security: [{ sessionCookie: [], csrfHeader: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [respostaFinal]
+              properties:
+                respostaFinal: { type: string, minLength: 1, maxLength: 5000 }
+      responses:
+        '204': { description: Manifestação concluída }
+        '400': { $ref: '#/components/responses/Erro' }
+        '401': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+        '404': { $ref: '#/components/responses/Erro' }
+  /api/auth/login:
+    post:
+      tags: [Autenticação]
+      operationId: login
+      summary: Autentica usuário e cria sessão/cookie CSRF
+      parameters:
+        - $ref: '#/components/parameters/Origin'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [email, password]
+              properties:
+                email: { type: string, format: email, maxLength: 254 }
+                password: { type: string, minLength: 1, maxLength: 1024, writeOnly: true }
+      responses:
+        '200':
+          description: Sessão criada; cookies HttpOnly e CSRF definidos
+          headers:
+            Set-Cookie:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [user, csrfToken]
+                properties:
+                  user: { $ref: '#/components/schemas/Principal' }
+                  csrfToken: { type: string }
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          $ref: '#/components/responses/Erro'
+        '503':
+          $ref: '#/components/responses/Erro'
+  /api/auth/logout:
+    post:
+      tags: [Autenticação]
+      operationId: logout
+      summary: Revoga a sessão atual
+      security:
+        - sessionCookie: []
+          csrfHeader: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+        - $ref: '#/components/parameters/Origin'
+      responses:
+        '204': { description: Sessão encerrada }
+        '401': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+  /api/auth/me:
+    get:
+      tags: [Autenticação]
+      operationId: obterSessaoAtual
+      summary: Retorna identidade, perfil e setores da sessão atual
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Principal autenticado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: { $ref: '#/components/schemas/Principal' }
+        '401': { $ref: '#/components/responses/Erro' }
+  /api/auth/csrf:
+    get:
+      tags: [Autenticação]
+      operationId: obterTokenCsrf
+      summary: Emite token CSRF para a sessão atual
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Token CSRF rotacionado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  csrfToken: { type: string }
+        '401': { $ref: '#/components/responses/Erro' }
+  /api/usuarios/convites/aceitar:
+    post:
+      tags: [Usuários]
+      operationId: aceitarConvite
+      summary: Ativa conta usando token de convite de uso único
+      parameters:
+        - $ref: '#/components/parameters/Origin'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [token, password]
+              properties:
+                token: { type: string, maxLength: 160 }
+                password: { type: string, minLength: 12, maxLength: 1024, writeOnly: true }
+      responses:
+        '204': { description: Convite aceito e conta ativada }
+        '400': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+        '503': { $ref: '#/components/responses/Erro' }
+  /api/setores:
+    get:
+      tags: [Setores]
+      operationId: listarSetores
+      summary: Lista setores autorizados com paginação
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: nome
+          in: query
+          schema: { type: string, maxLength: 120 }
+        - name: ativo
+          in: query
+          schema: { type: boolean }
+      responses:
+        '200': { $ref: '#/components/responses/Lista' }
+        '401': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+        '503': { $ref: '#/components/responses/Erro' }
+    post:
+      tags: [Setores]
+      operationId: criarSetor
+      summary: Cria setor no hospital autenticado
+      security: [{ sessionCookie: [], csrfHeader: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [nome]
+              properties:
+                nome: { type: string, minLength: 1, maxLength: 120 }
+                descricao: { type: [string, 'null'] }
+      responses:
+        '201': { $ref: '#/components/responses/Registro' }
+        '400': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+  /api/setores/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Setores]
+      operationId: obterSetor
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Registro' }
+        '401': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+        '404': { $ref: '#/components/responses/Erro' }
+    patch:
+      tags: [Setores]
+      operationId: atualizarSetor
+      security: [{ sessionCookie: [], csrfHeader: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              additionalProperties: false
+              properties:
+                nome: { type: string, minLength: 1, maxLength: 120 }
+                descricao: { type: [string, 'null'] }
+      responses:
+        '200': { $ref: '#/components/responses/Registro' }
+        '400': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+        '404': { $ref: '#/components/responses/Erro' }
+  /api/setores/{id}/status:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    patch:
+      tags: [Setores]
+      operationId: alterarStatusSetor
+      security: [{ sessionCookie: [], csrfHeader: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [ativo]
+              properties:
+                ativo: { type: boolean }
+      responses:
+        '200': { $ref: '#/components/responses/Registro' }
+        '403': { $ref: '#/components/responses/Erro' }
+        '404': { $ref: '#/components/responses/Erro' }
+  /api/equipes:
+    get:
+      tags: [Equipes]
+      operationId: listarEquipes
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: setorId
+          in: query
+          schema: { type: string }
+        - name: nome
+          in: query
+          schema: { type: string }
+        - name: ativa
+          in: query
+          schema: { type: boolean }
+      responses:
+        '200': { $ref: '#/components/responses/Lista' }
+        '401': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+    post:
+      tags: [Equipes]
+      operationId: criarEquipe
+      security: [{ sessionCookie: [], csrfHeader: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [setorId, nome]
+              properties:
+                setorId: { type: string, pattern: '^[1-9][0-9]*$' }
+                nome: { type: string, minLength: 1, maxLength: 120 }
+                descricao: { type: [string, 'null'] }
+      responses:
+        '201': { $ref: '#/components/responses/Registro' }
+        '400': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+  /api/equipes/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Equipes]
+      operationId: obterEquipe
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Registro' }
+        '401': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+        '404': { $ref: '#/components/responses/Erro' }
+    patch:
+      tags: [Equipes]
+      operationId: atualizarEquipe
+      security: [{ sessionCookie: [], csrfHeader: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              additionalProperties: false
+              properties:
+                setorId: { type: string }
+                nome: { type: string }
+                descricao: { type: [string, 'null'] }
+      responses:
+        '200': { $ref: '#/components/responses/Registro' }
+        '403': { $ref: '#/components/responses/Erro' }
+        '404': { $ref: '#/components/responses/Erro' }
+  /api/equipes/{id}/status:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    patch:
+      tags: [Equipes]
+      operationId: alterarStatusEquipe
+      security: [{ sessionCookie: [], csrfHeader: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ativa]
+              properties:
+                ativa: { type: boolean }
+      responses:
+        '200': { $ref: '#/components/responses/Registro' }
+        '403': { $ref: '#/components/responses/Erro' }
+  /api/turnos:
+    get:
+      tags: [Turnos]
+      operationId: listarTurnos
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: nome
+          in: query
+          schema: { type: string }
+        - name: ativo
+          in: query
+          schema: { type: boolean }
+      responses:
+        '200': { $ref: '#/components/responses/Lista' }
+        '401': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+    post:
+      tags: [Turnos]
+      operationId: criarTurno
+      security: [{ sessionCookie: [], csrfHeader: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [nome, horaInicio, horaFim]
+              properties:
+                nome: { type: string }
+                horaInicio: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$' }
+                horaFim: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$' }
+      responses:
+        '201': { $ref: '#/components/responses/Registro' }
+        '400': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+  /api/turnos/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Turnos]
+      operationId: obterTurno
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Registro' }
+        '401': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+        '404': { $ref: '#/components/responses/Erro' }
+    patch:
+      tags: [Turnos]
+      operationId: atualizarTurno
+      security: [{ sessionCookie: [], csrfHeader: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                nome: { type: string }
+                horaInicio: { type: string }
+                horaFim: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/Registro' }
+        '403': { $ref: '#/components/responses/Erro' }
+  /api/turnos/{id}/status:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    patch:
+      tags: [Turnos]
+      operationId: alterarStatusTurno
+      security: [{ sessionCookie: [], csrfHeader: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ativo]
+              properties:
+                ativo: { type: boolean }
+      responses:
+        '200': { $ref: '#/components/responses/Registro' }
+        '403': { $ref: '#/components/responses/Erro' }
+  /api/escalas:
+    get:
+      tags: [Escalas]
+      operationId: listarEscalas
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: setorId
+          in: query
+          schema: { type: string }
+        - name: equipeId
+          in: query
+          schema: { type: string }
+        - name: turnoId
+          in: query
+          schema: { type: string }
+        - name: data
+          in: query
+          schema: { type: string, format: date }
+        - name: status
+          in: query
+          schema: { type: string, enum: [PLANEJADA, CONFIRMADA, CANCELADA] }
+      responses:
+        '200': { $ref: '#/components/responses/Lista' }
+        '401': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+    post:
+      tags: [Escalas]
+      operationId: criarEscala
+      security: [{ sessionCookie: [], csrfHeader: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [setorId, equipeId, turnoId, data]
+              properties:
+                setorId: { type: string }
+                equipeId: { type: string }
+                turnoId: { type: string }
+                data: { type: string, format: date }
+                observacoes: { type: [string, 'null'] }
+      responses:
+        '201': { $ref: '#/components/responses/Registro' }
+        '400': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+  /api/escalas/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Escalas]
+      operationId: obterEscala
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Registro' }
+        '401': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+        '404': { $ref: '#/components/responses/Erro' }
+    patch:
+      tags: [Escalas]
+      operationId: atualizarEscala
+      security: [{ sessionCookie: [], csrfHeader: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                setorId: { type: string }
+                equipeId: { type: string }
+                turnoId: { type: string }
+                data: { type: string, format: date }
+                observacoes: { type: [string, 'null'] }
+      responses:
+        '200': { $ref: '#/components/responses/Registro' }
+        '403': { $ref: '#/components/responses/Erro' }
+  /api/escalas/{id}/cancelamento:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [Escalas]
+      operationId: cancelarEscala
+      security: [{ sessionCookie: [], csrfHeader: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      responses:
+        '200': { $ref: '#/components/responses/Registro' }
+        '403': { $ref: '#/components/responses/Erro' }
+  /api/escalas/{id}/profissionais:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Escalas]
+      operationId: listarProfissionaisEscala
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Lista' }
+        '403': { $ref: '#/components/responses/Erro' }
+    post:
+      tags: [Escalas]
+      operationId: adicionarProfissionalEscala
+      security: [{ sessionCookie: [], csrfHeader: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [usuarioId]
+              properties:
+                usuarioId: { type: string }
+                funcao: { type: [string, 'null'] }
+      responses:
+        '201': { $ref: '#/components/responses/Registro' }
+        '403': { $ref: '#/components/responses/Erro' }
+  /api/escalas/{id}/profissionais/{usuarioId}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+      - name: usuarioId
+        in: path
+        required: true
+        schema: { type: string, pattern: '^[1-9][0-9]*$' }
+    delete:
+      tags: [Escalas]
+      operationId: removerProfissionalEscala
+      security: [{ sessionCookie: [], csrfHeader: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      responses:
+        '200': { $ref: '#/components/responses/Registro' }
+        '403': { $ref: '#/components/responses/Erro' }
+  /api/pesquisas:
+    get:
+      tags: [Pesquisas]
+      operationId: listarPesquisasGerenciaveis
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200': { $ref: '#/components/responses/Lista' }
+        '401': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+    post:
+      tags: [Pesquisas]
+      operationId: criarPesquisa
+      security: [{ sessionCookie: [], csrfHeader: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [setorId, titulo]
+              properties:
+                setorId: { type: string, pattern: '^[1-9][0-9]*$' }
+                titulo: { type: string, minLength: 1, maxLength: 150 }
+                descricao: { type: [string, 'null'], maxLength: 5000 }
+      responses:
+        '201': { $ref: '#/components/responses/Registro' }
+        '400': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+  /api/pesquisas/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    patch:
+      tags: [Pesquisas]
+      operationId: atualizarPesquisa
+      security: [{ sessionCookie: [], csrfHeader: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [setorId, titulo]
+              properties:
+                setorId: { type: string, pattern: '^[1-9][0-9]*$' }
+                titulo: { type: string, minLength: 1, maxLength: 150 }
+                descricao: { type: [string, 'null'], maxLength: 5000 }
+      responses:
+        '200': { $ref: '#/components/responses/Registro' }
+        '400': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+        '404': { $ref: '#/components/responses/Erro' }
+  /api/pesquisas/{id}/status:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    patch:
+      tags: [Pesquisas]
+      operationId: alterarStatusPesquisa
+      security: [{ sessionCookie: [], csrfHeader: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [ativa]
+              properties:
+                ativa: { type: boolean }
+      responses:
+        '204': { description: Status atualizado }
+        '403': { $ref: '#/components/responses/Erro' }
+        '404': { $ref: '#/components/responses/Erro' }
+        '409': { $ref: '#/components/responses/Erro' }
+  /api/perguntas:
+    get:
+      tags: [Perguntas]
+      operationId: listarPerguntasGerenciaveis
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: pesquisaId
+          in: query
+          schema: { type: string, pattern: '^[1-9][0-9]*$' }
+      responses:
+        '200': { $ref: '#/components/responses/Lista' }
+        '400': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+    post:
+      tags: [Perguntas]
+      operationId: criarPergunta
+      security: [{ sessionCookie: [], csrfHeader: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [pesquisaId, texto, etapa, tipoResposta, obrigatoria, ordem]
+              properties:
+                pesquisaId: { type: string, pattern: '^[1-9][0-9]*$' }
+                texto: { type: string, minLength: 1, maxLength: 2000 }
+                etapa: { type: string, enum: [GERAL, RECEPCAO, TRIAGEM, ENFERMAGEM, MEDICO] }
+                tipoResposta: { type: string, enum: [TEXTO, NOTA, OPCAO, SIM_NAO] }
+                obrigatoria: { type: boolean }
+                ordem: { type: integer, minimum: 1, maximum: 1000 }
+      responses:
+        '201': { $ref: '#/components/responses/Registro' }
+        '400': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+        '404': { $ref: '#/components/responses/Erro' }
+        '409': { $ref: '#/components/responses/Erro' }
+  /api/perguntas/pesquisas:
+    get:
+      tags: [Perguntas]
+      operationId: listarPesquisasParaPerguntas
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Lista' }
+        '403': { $ref: '#/components/responses/Erro' }
+  /api/perguntas/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    patch:
+      tags: [Perguntas]
+      operationId: atualizarPergunta
+      security: [{ sessionCookie: [], csrfHeader: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [pesquisaId, texto, etapa, tipoResposta, obrigatoria, ordem]
+              properties:
+                pesquisaId: { type: string, pattern: '^[1-9][0-9]*$' }
+                texto: { type: string, minLength: 1, maxLength: 2000 }
+                etapa: { type: string, enum: [GERAL, RECEPCAO, TRIAGEM, ENFERMAGEM, MEDICO] }
+                tipoResposta: { type: string, enum: [TEXTO, NOTA, OPCAO, SIM_NAO] }
+                obrigatoria: { type: boolean }
+                ordem: { type: integer, minimum: 1, maximum: 1000 }
+      responses:
+        '200': { $ref: '#/components/responses/Registro' }
+        '400': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+        '404': { $ref: '#/components/responses/Erro' }
+        '409': { $ref: '#/components/responses/Erro' }
+  /api/perguntas/{id}/status:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    patch:
+      tags: [Perguntas]
+      operationId: alterarStatusPergunta
+      security: [{ sessionCookie: [], csrfHeader: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [ativa]
+              properties:
+                ativa: { type: boolean }
+      responses:
+        '204': { description: Status atualizado }
+        '403': { $ref: '#/components/responses/Erro' }
+        '404': { $ref: '#/components/responses/Erro' }
+  /api/usuarios:
+    get:
+      tags: [Usuários]
+      operationId: listarUsuarios
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 100 }
+      responses:
+        '200': { $ref: '#/components/responses/Lista' }
+        '401': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+    post:
+      tags: [Usuários]
+      operationId: convidarUsuario
+      security: [{ sessionCookie: [], csrfHeader: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [nome, email, perfilId]
+              properties:
+                nome: { type: string, maxLength: 150 }
+                email: { type: string, format: email, maxLength: 254 }
+                perfilId: { type: string, pattern: '^[1-9][0-9]*$' }
+      responses:
+        '202': { description: Solicitação recebida (resposta genérica) }
+        '400': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+  /api/usuarios/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Usuários]
+      operationId: obterUsuario
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Registro' }
+        '403': { $ref: '#/components/responses/Erro' }
+        '404': { $ref: '#/components/responses/Erro' }
+    patch:
+      tags: [Usuários]
+      operationId: atualizarUsuario
+      security: [{ sessionCookie: [], csrfHeader: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              additionalProperties: false
+              properties:
+                nome: { type: string, maxLength: 150 }
+                email: { type: string, format: email, maxLength: 254 }
+      responses:
+        '200': { $ref: '#/components/responses/Registro' }
+        '403': { $ref: '#/components/responses/Erro' }
+        '404': { $ref: '#/components/responses/Erro' }
+  /api/usuarios/{id}/status:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    patch:
+      tags: [Usuários]
+      operationId: alterarStatusUsuario
+      security: [{ sessionCookie: [], csrfHeader: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ativo]
+              properties:
+                ativo: { type: boolean }
+      responses:
+        '200': { $ref: '#/components/responses/Registro' }
+        '403': { $ref: '#/components/responses/Erro' }
+  /api/usuarios/{id}/perfil:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    patch:
+      tags: [Usuários]
+      operationId: alterarPerfilUsuario
+      security: [{ sessionCookie: [], csrfHeader: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [perfilId]
+              properties:
+                perfilId: { type: string, pattern: '^[1-9][0-9]*$' }
+      responses:
+        '200': { $ref: '#/components/responses/Registro' }
+        '403': { $ref: '#/components/responses/Erro' }
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: vivacare_session
+    csrfHeader:
+      type: apiKey
+      in: header
+      name: X-CSRF-Token
+  parameters:
+    CodigoPesquisa:
+      name: codigo
+      in: path
+      required: true
+      schema: { type: string, minLength: 1 }
+      description: Slug de setor ou UUID público.
+    CodigoUuid:
+      name: codigo
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, pattern: '^[1-9][0-9]*$' }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, format: uuid, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$' }
+      description: UUIDv4 aleatório; repetir a chave com payload distinto gera conflito.
+    CsrfToken:
+      name: X-CSRF-Token
+      in: header
+      required: true
+      schema: { type: string }
+    Origin:
+      name: Origin
+      in: header
+      required: true
+      schema: { type: string, format: uri }
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    PageSize:
+      name: pageSize
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+  responses:
+    Erro:
+      description: Erro de validação, autenticação, autorização ou disponibilidade
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Erro'
+    Lista:
+      description: Lista paginada
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                type: array
+                items: { type: object, additionalProperties: true }
+              pagination:
+                $ref: '#/components/schemas/Paginacao'
+    Registro:
+      description: Registro retornado
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data: { type: object, additionalProperties: true }
+  schemas:
+    Erro:
+      type: object
+      properties:
+        code: { type: string }
+        message: { type: string }
+        error: { type: string }
+    Paginacao:
+      type: object
+      properties:
+        page: { type: integer }
+        pageSize: { type: integer }
+        total: { type: integer }
+        totalPages: { type: integer }
+    Principal:
+      type: object
+      properties:
+        userId: { type: string }
+        name: { type: string }
+        email: { type: string, format: email }
+        hospitalId: { type: string }
+        profile:
+          type: object
+          properties:
+            id: { type: string }
+            code: { type: string }
+            name: { type: string }
+        sectorIds:
+          type: array
+          items: { type: string }
+    PerguntaPesquisa:
+      type: object
+      properties:
+        id: { type: string }
+        text: { type: string }
+        stage: { type: string, enum: [GERAL, RECEPCAO, TRIAGEM, ENFERMAGEM, MEDICO] }
+        answerType: { type: string, enum: [TEXTO, NOTA, OPCAO, SIM_NAO] }
+        required: { type: boolean }
+        position: { type: integer }
+    PesquisaPublica:
+      type: object
+      properties:
+        id: { type: string }
+        publicCode: { type: string, format: uuid }
+        title: { type: string }
+        description: { type: [string, 'null'] }
+        sectorName: { type: string }
+        questions:
+          type: array
+          items: { $ref: '#/components/schemas/PerguntaPesquisa' }
+    RespostaAnonima:
+      type: object
+      additionalProperties: false
+      required: [nps, answers]
+      properties:
+        nps: { type: integer, minimum: 0, maximum: 10 }
+        answers:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            additionalProperties: false
+            required: [questionId, value]
+            properties:
+              questionId: { type: string, pattern: '^[1-9][0-9]*$' }
+              value:
+                oneOf:
+                  - { type: string, maxLength: 4000 }
+                  - { type: integer, minimum: 0, maximum: 10 }
+                  - { type: boolean }
+    SubmissaoAnonimaV2:
+      type: object
+      additionalProperties: false
+      required: [notaNps, respostas]
+      properties:
+        notaNps: { type: integer, minimum: 0, maximum: 10 }
+        respostas:
+          type: array
+          maxItems: 200
+          items:
+            type: object
+            additionalProperties: false
+            required: [perguntaId, valor]
+            properties:
+              perguntaId: { type: string, pattern: '^[1-9][0-9]*$' }
+              valor:
+                oneOf:
+                  - { type: string, maxLength: 5000 }
+                  - { type: integer, minimum: 0, maximum: 10 }
+                  - { type: boolean }
+    ResultadoSubmissao:
+      type: object
+      properties:
+        status: { type: string, enum: [submitted, already_submitted] }
+    ManifestacaoPublica:
+      type: object
+      additionalProperties: false
+      required: [type, phone, statement, consent]
+      properties:
+        type: { type: string, enum: [ELOGIO, RECLAMACAO, SUGESTAO] }
+        name: { type: string, maxLength: 150 }
+        phone: { type: string, description: Telefone brasileiro com DDD. }
+        statement: { type: string, minLength: 1, maxLength: 5000 }
+        consent: { type: boolean, const: true }
+    ResultadoOuvidoria:
+      type: object
+      properties:
+        status: { type: string, enum: [submitted, already_submitted] }
+        protocol: { type: string }
+    IndicadorNps:
+      type: object
+      properties:
+        setor_id: { type: string }
+        setor: { type: string }
+        data_resposta: { type: string, format: date }
+        turno_id: { type: [string, 'null'] }
+        turno: { type: [string, 'null'] }
+        total_respostas: { type: string }
+        total_promotores: { type: string }
+        total_neutros: { type: string }
+        total_detratores: { type: string }
+        nps: { type: string }
