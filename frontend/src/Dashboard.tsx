@@ -85,17 +85,28 @@ function Overview({ previewMode }: { previewMode: boolean }) {
 
 function Indicators({ previewMode }: { previewMode: boolean }) {
   const [rows, setRows] = useState<IndicatorRow[]>([]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [reloadKey, setReloadKey] = useState(0);
   const [loading, setLoading] = useState(!previewMode);
   const [error, setError] = useState('');
   useEffect(() => {
     if (previewMode) return;
     let active = true;
     setLoading(true);
-    void getIndicators().then((result) => { if (active) setRows(result.data); })
+    setError('');
+    void getIndicators(page).then((result) => {
+      if (active) {
+        setRows(result.data);
+        setTotal(result.pagination.total);
+        setTotalPages(result.pagination.totalPages);
+      }
+    })
       .catch((cause: unknown) => { if (active) setError(cause instanceof Error ? cause.message : 'Não foi possível carregar os indicadores.'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [previewMode]);
+  }, [page, previewMode, reloadKey]);
 
   if (previewMode) return <div className="dashboard-card empty-period"><strong>Prévia sem dados</strong><p>Entre com uma conta autorizada para consultar os indicadores.</p></div>;
   const totals = rows.reduce((sum, row) => ({
@@ -106,16 +117,17 @@ function Indicators({ previewMode }: { previewMode: boolean }) {
   const nps = totals.responses ? Math.round(((totals.promoters - totals.detractors) / totals.responses) * 10000) / 100 : null;
   return <section className="management-list-section">
     <div className="metric-grid">
-      <article className="dashboard-card metric-card"><div className="metric-top"><span>Respostas</span><span className="metric-icon">▣</span></div><strong>{totals.responses}</strong><small>no recorte carregado</small></article>
-      <article className="dashboard-card metric-card"><div className="metric-top"><span>NPS agregado</span><span className="metric-icon">♡</span></div><strong>{nps === null ? '—' : nps}</strong><small>calculado pelas respostas</small></article>
+      <article className="dashboard-card metric-card"><div className="metric-top"><span>Respostas na página</span><span className="metric-icon">▣</span></div><strong>{totals.responses}</strong><small>grupos com pelo menos 3 respostas</small></article>
+      <article className="dashboard-card metric-card"><div className="metric-top"><span>NPS da página</span><span className="metric-icon">♡</span></div><strong>{nps === null ? '—' : nps}</strong><small>calculado pelos grupos desta página</small></article>
       <article className="dashboard-card metric-card"><div className="metric-top"><span>Setores</span><span className="metric-icon">⌂</span></div><strong>{new Set(rows.map((row) => row.setor_id)).size}</strong><small>com respostas no recorte</small></article>
     </div>
     {error && <p className="inline-notice" role="alert">{error}</p>}
-    <div className="ombudsman-summary">{loading ? 'Carregando indicadores…' : `${rows.length} agrupamento(s) recebidos da API`}</div>
+    <div className="ombudsman-summary">{loading ? 'Carregando indicadores…' : `${total} agrupamento(s) disponíveis · página ${page} de ${totalPages}`}<button type="button" className="secondary" disabled={loading} onClick={() => setReloadKey((value) => value + 1)}>{loading ? 'Atualizando…' : 'Atualizar indicadores'}</button></div>
     <div className="ombudsman-table-wrap"><table className="ombudsman-table"><thead><tr><th>Data</th><th>Setor</th><th>Turno</th><th>Respostas</th><th>Promotores</th><th>Neutros</th><th>Detratores</th><th>NPS</th></tr></thead>
       <tbody>{rows.map((row, index) => <tr key={`${row.setor_id}-${row.data_resposta}-${row.turno_id ?? 'sem-turno'}-${index}`}><td>{row.data_resposta}</td><td>{row.setor}</td><td>{row.turno ?? '—'}</td><td>{row.total_respostas}</td><td>{row.total_promotores}</td><td>{row.total_neutros}</td><td>{row.total_detratores}</td><td>{row.nps}</td></tr>)}
         {!rows.length && !loading && <tr><td colSpan={8}><div className="ombudsman-empty"><strong>Sem indicadores para exibir</strong></div></td></tr>}</tbody>
     </table></div>
+    {totalPages > 1 && <div className="management-pagination"><button type="button" disabled={loading || page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>Anterior</button><span>Página {page} de {totalPages}</span><button type="button" disabled={loading || page >= totalPages} onClick={() => setPage((value) => Math.min(totalPages, value + 1))}>Próxima</button></div>}
   </section>;
 }
 

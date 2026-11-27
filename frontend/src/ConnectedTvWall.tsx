@@ -16,10 +16,17 @@ export function ConnectedTvWall({ onExit, previewMode = false }: Props) {
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const load = useCallback(async (signal?: AbortSignal) => {
     if (previewMode) return;
+    setLoading(true);
     try {
-      const result = await getIndicators(1, 100);
+      const firstPage = await getIndicators(1, 100);
+      const allRows = [...firstPage.data];
+      for (let page = 2; page <= firstPage.pagination.totalPages; page += 1) {
+        if (signal?.aborted) return;
+        const result = await getIndicators(page, 100);
+        allRows.push(...result.data);
+      }
       if (signal?.aborted) return;
-      setRows(result.data);
+      setRows(allRows);
       setError('');
       setUpdatedAt(new Date());
     } catch (cause) {
@@ -57,14 +64,14 @@ export function ConnectedTvWall({ onExit, previewMode = false }: Props) {
   return <main className="tvwall">
     <header className="tvwall-header">
       <div className="tvwall-brand"><span className="brand-mark" aria-hidden="true"><i /><i /><i /></span><span>FHDOD</span><h1>VivaCare <span>— Experiência do Paciente</span></h1></div>
-      <div className="tvwall-controls"><span className="tvwall-live"><i />{previewMode ? 'Prévia sem dados' : loading ? 'Carregando API…' : error ? 'API indisponível' : 'Atualiza a cada minuto'}</span><button onClick={onExit}>Sair da TV Wall</button></div>
+      <div className="tvwall-controls"><span className="tvwall-live"><i />{previewMode ? 'Prévia sem dados' : loading ? 'Carregando API…' : error ? 'API indisponível' : 'Atualiza a cada minuto'}</span>{!previewMode && <button type="button" disabled={loading} onClick={() => void load()}>{loading ? 'Carregando…' : 'Atualizar'}</button>}<button onClick={onExit}>Sair da TV Wall</button></div>
     </header>
     {error && <p role="alert" className="tvwall-error">{error}</p>}
     {previewMode && <p role="status" className="tvwall-error">A prévia não consulta dados reais. Entre com uma conta autorizada para ver a TV Wall conectada.</p>}
     <section className="tvwall-metrics" aria-label="Indicadores principais">
-      <Metric label="NPS agregado" icon="♡" value={nps === null ? '—' : String(nps)} note={`${totals.answers} respostas nos agrupamentos carregados`} />
+      <Metric label="NPS agregado" icon="♡" value={nps === null ? '—' : String(nps)} note={`${totals.answers} respostas nos grupos disponíveis`} />
       <Metric label="Satisfação" icon="◷" value="—" note="Aguardando aprovação da migration de escalas" />
-      <Metric label="Respostas hoje" icon="▣" value={String(today)} note="Data local de São Paulo · dentro dos agrupamentos carregados" />
+      <Metric label="Respostas hoje" icon="▣" value={String(today)} note="Data local de São Paulo · em grupos visíveis" />
       <Metric label="Ouvidoria" icon="♧" value="—" note="Indicador agregado ainda não disponível na API" />
     </section>
     <section className="tvwall-charts">

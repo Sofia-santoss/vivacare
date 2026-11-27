@@ -31,7 +31,8 @@ export function createIndicadoresRouter(pool: Pool): express.Router {
     }
     const sectorIds = req.sectorScope === 'assigned' ? req.auth.sectorIds : null;
     try {
-      const result = await pool.query<IndicatorRow>(
+      const [result, count] = await Promise.all([
+        pool.query<IndicatorRow>(
         `SELECT setor_id::text, setor, data_resposta::text, turno_id::text, turno,
                 total_respostas::text, total_promotores::text, total_neutros::text,
                 total_detratores::text, nps::text
@@ -41,8 +42,17 @@ export function createIndicadoresRouter(pool: Pool): express.Router {
           ORDER BY data_resposta DESC, setor, turno
           LIMIT $3 OFFSET $4`,
         [req.auth.hospitalId, sectorIds, pageSize, (page - 1) * pageSize],
-      );
-      return res.status(200).json({ data: result.rows, pagination: { page, pageSize } });
+        ),
+        pool.query<{ total: string }>(
+          `SELECT count(*)::text AS total
+             FROM public.vw_indicadores_nps_setor_dia_turno
+            WHERE hospital_id=$1 AND total_respostas >= 3
+              AND ($2::bigint[] IS NULL OR setor_id=ANY($2::bigint[]))`,
+          [req.auth.hospitalId, sectorIds],
+        ),
+      ]);
+      const total = Number(count.rows[0]?.total ?? 0);
+      return res.status(200).json({ data: result.rows, pagination: { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) } });
     } catch (error) { return next(error); }
   });
   return router;

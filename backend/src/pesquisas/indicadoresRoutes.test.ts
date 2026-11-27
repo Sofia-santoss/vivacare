@@ -23,13 +23,13 @@ describe('indicadores autorizados por perfil e escopo', () => {
   it('permite GESTAO consultar somente o hospital da sessao', async () => {
     const h = appFor('GESTAO', [], [PERMISSIONS.indicatorsReadHospital]);
     expect((await request(h.app).get('/indicadores')).status).toBe(200);
-    expect(h.query.mock.calls.at(-1)?.[1]).toEqual(['10', null, 50, 0]);
+    expect(h.query.mock.calls.at(-2)?.[1]).toEqual(['10', null, 50, 0]);
   });
 
   it('restringe ADMIN_SETOR aos setores associados', async () => {
     const h = appFor('ADMIN_SETOR', ['7'], [PERMISSIONS.indicatorsReadAssigned]);
     expect((await request(h.app).get('/indicadores?page=2&pageSize=25')).status).toBe(200);
-    expect(h.query.mock.calls.at(-1)?.[1]).toEqual(['10', ['7'], 25, 25]);
+    expect(h.query.mock.calls.at(-2)?.[1]).toEqual(['10', ['7'], 25, 25]);
   });
 
   it('nega OUVIDORIA sem permissao de indicadores e nao consulta os dados', async () => {

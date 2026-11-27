@@ -113,7 +113,7 @@ export interface IndicatorRow {
 
 export interface IndicatorListResult {
   data: IndicatorRow[];
-  pagination: { page: number; pageSize: number };
+  pagination: { page: number; pageSize: number; total: number; totalPages: number };
 }
 
 export type OmbudsmanStatus = 'RECEBIDA' | 'EM_ANALISE' | 'AGUARDANDO_CONTATO' | 'EM_TRATAMENTO' | 'CONCLUIDA' | 'ARQUIVADA';
