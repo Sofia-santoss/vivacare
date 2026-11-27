@@ -1,15 +1,15 @@
 # Registro de tarefas - VivaCare
 
-Responsaveis: **Pessoa A** = Raissa (backend e banco) · **Pessoa B** = Sofia (frontend e documentacao).
+Responsáveis: **Pessoa A** = Raissa (backend e banco) · **Pessoa B** = Sofia (frontend e documentação).
 
 ## Concluidas
 
 | Tarefa | Estado |
 |---|---|
-| Criacao do repositorio, clone, `.gitignore` e README inicial | Concluida |
+| Criação do repositório, clone, `.gitignore` e README inicial | Concluída |
 | Estrutura `frontend`, `backend`, `database` e `docs` | Criada |
 | Health check do backend | Implementado em `GET /health`; depende de acesso ao PostgreSQL |
-| Validacoes de formulario e acessibilidade basica do fluxo do paciente | Implementadas |
+| Validações de formulário e acessibilidade básica do fluxo do paciente | Implementadas |
 | Contratos e cliente HTTP do frontend para pesquisas e Ouvidoria | Implementados |
 | Rotas publicas de leitura, resposta anonima e Ouvidoria | Implementadas e com typecheck; aguardam schema e configuracao do banco |
 
@@ -17,16 +17,17 @@ Responsaveis: **Pessoa A** = Raissa (backend e banco) · **Pessoa B** = Sofia (f
 
 | Tarefa | Responsavel | Observacao |
 |---|---|---|
-| Validar e promover a proposta de banco 008 | Pessoa A | Depende da reconciliação do ledger, classificação das perguntas `NOTA` e contagem de manifestações legadas vinculadas |
-| Ativar e validar o fluxo ponta a ponta com PostgreSQL | A + B | Fazer em banco descartavel/local depois da migration |
+| Revisar e promover a proposta de escalas para a próxima versão livre | Pessoa A | A migration oficial 008 já existe. A proposta não pode ser promovida como outra 008; depende da reconciliação do ledger, classificação `NOTA` e contagem de manifestações legadas vinculadas |
+| Validar o fluxo ponta a ponta no ambiente de teste | A + B | Após compatibilidade do schema e bootstrap da conta administradora |
 
 ## Pendentes
 
-- Confirmar como cadastrar e enviar as opcoes de perguntas `OPCAO`; o schema atual nao publica uma lista de opcoes.
-- Conectar autenticacao e painel de gestao aos endpoints protegidos; hoje o painel continua sendo uma previa local.
-- Revisar os fluxos e o desenho final com as referencias visuais acordadas.
-- Documentar instalacao e execucao local completa depois que a configuracao do banco estiver disponivel.
+- Aprovar o contrato e o schema de alternativas para perguntas `OPCAO`; até lá o campo aceita texto livre.
+- Confirmar no Render os segredos SMTP e a entrega real de convites.
+- Revisar gestão de perguntas e registrar auditoria transacional das mutações.
+- Revisar os fluxos e o desenho final com as referências visuais acordadas.
+- Validar o acesso `SUPER_ADMIN` e as jornadas completas após a reconciliação do banco.
 
-## Dependencias de banco
+## Dependências de banco
 
-A proposta `database/proposals/008_escalas_pesquisas.up.sql` ainda nao faz parte de `database/migrations` e nao deve ser aplicada ate a revisao documentada em `docs/API_PUBLICA_PENDENCIAS.md`. Os limites aprovados para pesquisa e Ouvidoria são 60 requisições por IP a cada 60 segundos, com contadores independentes; a limpeza horária é executada pelo job separado com identidade MAINT.
+A proposta `database/proposals/008_escalas_pesquisas.up.sql` ainda não faz parte de `database/migrations`. A versão oficial 008 já está ocupada por `008_manifestacoes_hospital_scope`; a proposta não deve ser aplicada nem promovida antes da reconciliação descrita em `docs/API_PUBLICA_PENDENCIAS.md`. Os limites aprovados para pesquisa e Ouvidoria são 60 requisições por IP a cada 60 segundos, com contadores independentes; a limpeza horária depende do Cron Job separado com identidade MAINT.

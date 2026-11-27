@@ -36,7 +36,8 @@ export function createIndicadoresRouter(pool: Pool): express.Router {
                 total_respostas::text, total_promotores::text, total_neutros::text,
                 total_detratores::text, nps::text
            FROM public.vw_indicadores_nps_setor_dia_turno
-          WHERE hospital_id=$1 AND ($2::bigint[] IS NULL OR setor_id=ANY($2::bigint[]))
+          WHERE hospital_id=$1 AND total_respostas >= 3
+            AND ($2::bigint[] IS NULL OR setor_id=ANY($2::bigint[]))
           ORDER BY data_resposta DESC, setor, turno
           LIMIT $3 OFFSET $4`,
         [req.auth.hospitalId, sectorIds, pageSize, (page - 1) * pageSize],

@@ -16,7 +16,10 @@ HTTP / Express
     ├── equipes
     ├── turnos
     ├── escalas
-    └── usuários
+    ├── usuários
+    ├── pesquisas e perguntas
+    ├── indicadores agregados
+    └── administração da Ouvidoria
           ↓
      Controllers → Services → Repositories → PostgreSQL
 ```
@@ -65,8 +68,9 @@ O padrão concreto varia entre módulos; serviços/repositórios não devem ser 
 - `pg.Pool` reaproveita conexões; módulos e contratos delimitados permitem separar serviços ou escalar API sem acoplar a interface à implementação SQL.
 - Auditoria e idempotência mantêm integridade sob concorrência usando transações/locks no banco.
 - O limitador distribuído depende de tabelas e configuração PostgreSQL; não inicializar valores de produção por suposição.
-- O envio de convite ainda não tem provedor SMTP configurado; a implementação padrão falha fechado. Uma outbox é uma evolução possível se o volume/garantia de entrega exigir.
-- Não há hoje endpoints de métricas do dashboard nem módulo administrativo completo da Ouvidoria. As telas correspondentes continuam parciais.
+- O adaptador SMTP de convites está implementado. A entrega em produção depende de variáveis válidas no Render e de confirmação do envio; credenciais devem permanecer no cofre de segredos.
+- Há endpoints protegidos de indicadores agregados, gestão de pesquisas/perguntas e Ouvidoria, com telas autenticadas correspondentes. Satisfação e métricas por equipe dependem da proposta de schema ainda não promovida.
+- Existem áreas de prévia local com dados fictícios/rascunhos, separadas das listagens autenticadas que usam a API.
 - Migrations, matriz de permissões e proposta de submissões precisam estar aplicadas/aprovadas no banco antes de validar o fluxo real. Esta documentação não afirma que foram aplicadas.
 
 ## 5. Qualidade e evolução

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getIndicators } from './api/client';
 import { OmbudsmanWorkspace } from './OmbudsmanWorkspace';
-import { TvWall } from './TvWall';
+import { ConnectedTvWall } from './ConnectedTvWall';
 import { Button } from './components/Button';
 import { ManagementApiList } from './components/ManagementApiList';
 import type { FormEvent } from 'react';
@@ -58,7 +58,7 @@ export function Dashboard({ onBack, user, previewMode }: DashboardProps) {
 
   const removeDraft = (section: Section, id: number) => setDrafts((current) => ({ ...current, [section]: (current[section] ?? []).filter((item) => item.id !== id) }));
 
-  if (showTvWall) return <TvWall onExit={() => setShowTvWall(false)} />;
+  if (showTvWall) return <ConnectedTvWall onExit={() => setShowTvWall(false)} previewMode={previewMode} />;
 
   return <main className="management-page">
     <header className="management-topbar">
@@ -73,7 +73,7 @@ export function Dashboard({ onBack, user, previewMode }: DashboardProps) {
       <section className="dashboard-content">
         <div className="dashboard-heading"><div><div className="eyebrow">PAINEL DE GESTÃO</div><h1>{active}</h1><p>{previewMode ? 'Prévia visual · não consulta nem altera dados' : 'Sessão autenticada · dados carregados das APIs do painel'}</p></div><div className="dashboard-actions"><span className="refresh-label">{previewMode ? 'Prévia local' : 'Sessão válida'}</span><button className="tvwall-open-button" onClick={() => setShowTvWall(true)}>◱ TV Wall</button></div></div>
         {notice && <p className="inline-notice" role="status">{notice}</p>}
-        {active === 'Ouvidoria' ? <OmbudsmanWorkspace previewMode={previewMode} /> : active === 'Visão geral' ? <Overview previewMode={previewMode} /> : active === 'Indicadores' ? <Indicators previewMode={previewMode} /> : !previewMode && isApiSection ? <ManagementApiList section={active as (typeof apiSections)[number]} /> : active === 'Pesquisas' || active === 'Perguntas' || isApiSection ? <ListSection title={active === 'Perguntas' ? 'Perguntas do setor' : active === 'Usuários' ? 'Usuários e permissões' : active === 'Setores' || active === 'Equipes' || active === 'Turnos' || active === 'Escalas' ? active : 'Pesquisas'} description={active === 'Perguntas' ? 'Gerencie perguntas e sua obrigatoriedade na pesquisa.' : active === 'Usuários' ? 'Acesso administrativo por perfil e setor.' : 'Prévia local da área de gestão.'} records={drafts[active] ?? []} onCreate={() => setForm(active)} onRemove={(id) => removeDraft(active, id)} /> : <Settings onSave={() => setNotice('Preferências atualizadas apenas nesta visualização. A API ainda não está conectada.')} />}
+        {active === 'Ouvidoria' ? <OmbudsmanWorkspace previewMode={previewMode} /> : active === 'Visão geral' ? <Overview previewMode={previewMode} /> : active === 'Indicadores' ? <Indicators previewMode={previewMode} /> : !previewMode && isApiSection ? <ManagementApiList section={active as (typeof apiSections)[number]} /> : active === 'Pesquisas' || active === 'Perguntas' || isApiSection ? <ListSection title={active === 'Perguntas' ? 'Perguntas do setor' : active === 'Usuários' ? 'Usuários e permissões' : active === 'Setores' || active === 'Equipes' || active === 'Turnos' || active === 'Escalas' ? active : 'Pesquisas'} description={active === 'Perguntas' ? 'Gerencie perguntas e sua obrigatoriedade na pesquisa.' : active === 'Usuários' ? 'Acesso administrativo por perfil e setor.' : 'Prévia local da área de gestão.'} records={drafts[active] ?? []} onCreate={() => setForm(active)} onRemove={(id) => removeDraft(active, id)} /> : <Settings onSave={() => setNotice('As preferências desta tela são locais e ainda não são sincronizadas com o servidor.')} />}
         {form && <FormDialog section={form} onClose={() => setForm(null)} onSubmit={saveDraft} />}
       </section>
     </div>

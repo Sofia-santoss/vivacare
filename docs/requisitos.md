@@ -29,15 +29,15 @@ Estados: **Implementado em código** significa que há rota/interface; não comp
 | RF-01 | O respondente abre uma pesquisa pelo slug do setor ou pelo código público UUID. | A API retorna somente uma pesquisa ativa compatível; código inválido, pesquisa ausente e slug ambíguo geram erro explícito. | Implementado em código; depende de dados no PostgreSQL. |
 | RF-02 | A pesquisa exibe perguntas ativas na ordem configurada e uma pergunta por etapa. | As respostas são validadas pelo tipo e obrigatoriedade definidos na pesquisa. | Implementado em código; inventário real de perguntas pendente. |
 | RF-03 | A jornada termina com uma pergunta NPS obrigatória de 0 a 10. | Não é possível enviar a pesquisa sem selecionar um inteiro entre 0 e 10. | Implementado em código. |
-| RF-04 | O envio da pesquisa mantém as respostas anônimas. | A rota aceita NPS e respostas por ID, rejeita campos de contato e aplica chave de idempotência. | Implementado em código; envio real depende do schema/migration. |
+| RF-04 | O envio da pesquisa mantém as respostas anônimas. | A rota aceita NPS e respostas por ID, rejeita campos de contato e aplica chave de idempotência. | Implementado em código; idempotência e submissões sem turno dependem da proposta de schema e da validação no banco alvo. |
 | RF-05 | Se NPS for menor que 6, a jornada apresenta o formulário da Ouvidoria. | Para notas 0–5 aparece o fluxo de Ouvidoria; nota 6 ou superior segue para a conclusão sem esse gatilho. | Implementado no frontend conforme decisão da dupla; validar com o cliente. |
 | RF-06 | A pessoa pode enviar manifestação à Ouvidoria com tipo, relato, telefone e consentimento explícito. | A API exige relato, telefone válido e consentimento; devolve protocolo e não associa a manifestação à resposta anônima. | Implementado em código; envio real depende do PostgreSQL. |
 | RF-07 | A equipe entra com e-mail e senha e recebe sessão protegida. | Credenciais inválidas não revelam se o e-mail existe; sessão inválida/expirada não libera endpoints privados. | Implementado em código; depende de migrations, credenciais e hash compatível. |
-| RF-08 | A equipe pode encerrar sessão e aceitar convite de primeiro acesso. | Logout revoga a sessão; aceite usa token de uso único no fragmento do link e senha com pelo menos 12 caracteres. | Implementado em código; entrega de e-mail ainda sem provedor configurado. |
+| RF-08 | A equipe pode encerrar sessão e aceitar convite de primeiro acesso. | Logout revoga a sessão; aceite usa token de uso único no fragmento do link e senha com pelo menos 12 caracteres. | Implementado em código; o adaptador SMTP existe, mas a entrega depende da configuração e validação dos segredos no Render. |
 | RF-09 | O backend restringe operações por permissão e escopo. | Um usuário sem permissão recebe 403; tentativas fora do hospital/setores autorizados não retornam dados. | Implementado em código; depende das migrations/catálogo de permissões. |
 | RF-10 | A equipe consulta setores, equipes, turnos, escalas e usuários autorizados. | A API pagina resultados e filtra pelo escopo da sessão; o frontend exibe carregamento, erro, vazio e paginação. | Backend e listagens de frontend implementados; validação com banco pendente. |
 | RF-11 | Um administrador convida e administra usuários. | Criação, atualização, status e perfil respeitam permissões e registram auditoria. | Rotas implementadas; entrega de convite e banco pendentes. |
-| RF-12 | A equipe consulta métricas de NPS e manifestações agregadas. | Indicadores mostram agregações por setor/período sem expor texto livre ou grupos pequenos. | Parcial/pendente: telas visuais existem; API do painel ainda não está conectada. |
+| RF-12 | A equipe consulta indicadores e administra manifestações. | A API autenticada exibe NPS agregado por setor/data/turno, suprime grupos com menos de três respostas e oferece consulta, classificação, histórico e atualização de manifestações. | Implementado em código; indicadores de satisfação/equipe dependem da proposta de schema. |
 
 ## 4. Requisitos não funcionais
 
@@ -66,8 +66,8 @@ Estados: **Implementado em código** significa que há rota/interface; não comp
 1. Confirmar schema alvo, migrations aplicadas, perguntas ativas e faixas de cada pergunta `NOTA`.
 2. Confirmar a decisão `< 6` com o cliente e se o formulário deve ser apenas oferecido ou obrigatório para avançar.
 3. Definir modelagem das opções de perguntas `OPCAO`.
-4. Configurar provedor de e-mail para convites; hoje o adaptador padrão falha fechado.
-5. Definir os endpoints de indicadores e de gestão da Ouvidoria.
+4. Confirmar no Render a configuração SMTP do remetente e validar a entrega de convite em ambiente de teste.
+5. Implementar agregações de Ouvidoria caso sejam requisito; hoje há API de gestão de manifestações e indicadores de NPS, sem painel agregado de Ouvidoria.
 6. Confirmar matriz de permissões e regras de escopo com os responsáveis pelo banco.
 7. Confirmar navegadores/dispositivos e metas de desempenho de aceite.
 

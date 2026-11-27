@@ -4,7 +4,7 @@
 
 A matriz abaixo foi aprovada em 12/11/2026 e está descrita em `database/migrations/005_matriz_permissoes_aprovada.up.sql`. Essa migration está preparada, **não aplicada**. A migration 004 e as anteriores permanecem inalteradas. Não declare esta matriz ativa até autorização explícita e execução operacional da sequência.
 
-O catálogo serve como autorização no servidor; não libera automaticamente módulos sem rotas/serviços. No estado atual, apenas o módulo de setores possui rotas protegidas. Usuários, equipes, turnos, escalas, perguntas, configurações de pesquisas, manifestações e consulta administrativa de auditoria ainda precisam de implementação de backend.
+O catálogo serve como autorização no servidor; não libera automaticamente módulos sem rotas/serviços. O backend já possui rotas protegidas para setores, equipes, turnos, escalas, usuários, pesquisas/perguntas, indicadores agregados e gestão da Ouvidoria. A existência dessas rotas não comprova que a matriz e o schema estejam aplicados no banco hospedado. Endpoints para administrar a própria matriz de permissões ainda não existem.
 
 ## Códigos e perfis
 
@@ -39,11 +39,11 @@ O catálogo serve como autorização no servidor; não libera automaticamente m�
 
 O Admin do Hospital recebe `sectors.scope.hospital`; o Gestor não. As rotas atuais de setores consultam a permissão no backend e filtram pelo hospital do principal. No Gestor, a associação deve vir de `usuario_setores`. Para perguntas, o escopo deve ser resolvido pelo relacionamento pergunta → pesquisa → setor, conferido no servidor; a migration não cria autorização por ID enviado pelo cliente.
 
-Consultas de indicadores para Visualizador e Gestor devem aplicar a supressão de grupos com menos de três respostas no serviço/query agregadora. Essa regra ainda não está implementada nesta etapa. Ouvidoria não recebe permissão de indicadores, respostas individuais ou administração geral. Dados de contato só devem ser retornados após verificar autorização registrada pelo paciente e necessidade operacional; essa regra também depende do serviço de manifestações.
+Consultas de indicadores para Visualizador e Gestor aplicam no endpoint `/api/indicadores` a supressão de grupos com menos de três respostas. A proposta de schema também inclui essa regra nas views, para que futuras consultas não dependam somente do endpoint atual. Ouvidoria não recebe permissão de indicadores, respostas individuais ou administração geral. A tela de gestão de manifestações retorna dados de contato somente quando a pessoa autorizou contato.
 
 ## Auditoria e lacunas de implementação
 
-A migration 003 cria `eventos_auditoria` append-only para a role de aplicação. O módulo de setores grava eventos de criação, edição e mudança de status junto da mutação. Não há rotas/serviços administrativos para usuários, perfis, permissões, perguntas ou configurações de pesquisas; portanto a cobertura de auditoria dessas operações ainda não existe. Cada operação futura deve gravar evento na mesma transação e falhar integralmente se a auditoria falhar. Operações privilegiadas do Super Admin precisam ser auditadas, incluindo alterações de usuários/perfis e da matriz de permissões. Acesso a contato não deve gravar o próprio dado sensível nos detalhes do evento.
+A migration 003 cria `eventos_auditoria` append-only para a role de aplicação. Setores, equipes, turnos, escalas e operações de usuários registram eventos junto da mutação. A gestão de pesquisas/perguntas ainda precisa de auditoria transacional; também não existem endpoints para alterar a matriz de permissões. Acesso a contato não deve gravar o próprio dado sensível nos detalhes do evento. A aplicação da migration 003 e os grants efetivos ainda dependem da reconciliação do banco.
 
 ## Migrations
 

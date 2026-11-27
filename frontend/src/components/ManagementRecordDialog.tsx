@@ -10,6 +10,10 @@ const resourceBySection: Record<ManagementSection, ManagementResource> = {
   Setores: 'setores', Equipes: 'equipes', Turnos: 'turnos', Escalas: 'escalas', Usuários: 'usuarios',
   Pesquisas: 'pesquisas', Perguntas: 'perguntas',
 };
+const singularBySection: Record<ManagementSection, string> = {
+  Setores: 'setor', Equipes: 'equipe', Turnos: 'turno', Escalas: 'escala', Usuários: 'usuário',
+  Pesquisas: 'pesquisa', Perguntas: 'pergunta',
+};
 
 type Option = { id: string; nome: string };
 type Props = { section: ManagementSection; onClose: () => void; onCreated: () => void; record?: Record<string, unknown> };
@@ -95,7 +99,7 @@ export function ManagementRecordDialog({ section, onClose, onCreated, record }: 
 
   return <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) onClose(); }}>
     <section className="dashboard-card form-dialog" role="dialog" aria-modal="true" aria-labelledby="api-create-title">
-      <div className="dialog-heading"><div><div className="eyebrow">{record ? 'EDITAR REGISTRO' : 'NOVO CADASTRO'}</div><h2 id="api-create-title">{record ? `Editar ${section.slice(0, -1).toLowerCase()}` : section === 'Usuários' ? 'Convidar usuário' : `Cadastrar ${section.slice(0, -1).toLowerCase()}`}</h2></div><button type="button" aria-label="Fechar" onClick={onClose} disabled={busy}>×</button></div>
+      <div className="dialog-heading"><div><div className="eyebrow">{record ? 'EDITAR REGISTRO' : 'NOVO CADASTRO'}</div><h2 id="api-create-title">{record ? `Editar ${singularBySection[section]}` : section === 'Usuários' ? 'Convidar usuário' : `Cadastrar ${singularBySection[section]}`}</h2></div><button type="button" aria-label="Fechar" onClick={onClose} disabled={busy}>×</button></div>
       {loadingOptions && <p role="status">Carregando opções...</p>}
       {error && <p className="error-message" role="alert">{error}</p>}
       <form onSubmit={(event) => void submit(event)}>
@@ -104,7 +108,7 @@ export function ManagementRecordDialog({ section, onClose, onCreated, record }: 
           <label className="field-label">Descrição<textarea name="descricao" rows={3} defaultValue={String(record?.descricao ?? '')} /></label>
         </>}
         {section === 'Equipes' && <>
-          {selectField('Setor', 'setorId', sectors)}
+          {selectField('Setor', 'setorId', sectors, record?.setorId ?? record?.setor_id)}
           <label className="field-label">Nome da equipe<input name="nome" required maxLength={120} autoFocus defaultValue={String(record?.nome ?? '')} /></label>
           <label className="field-label">Descrição<textarea name="descricao" rows={3} defaultValue={String(record?.descricao ?? '')} /></label>
         </>}
@@ -114,7 +118,7 @@ export function ManagementRecordDialog({ section, onClose, onCreated, record }: 
           <label className="field-label">Horário de fim<input name="horaFim" type="time" required defaultValue={String(record?.horaFim ?? '')} /></label>
         </>}
         {section === 'Escalas' && <>
-          {selectField('Setor', 'setorId', sectors)}{selectField('Equipe', 'equipeId', teams)}{selectField('Turno', 'turnoId', shifts)}
+          {selectField('Setor', 'setorId', sectors, record?.setorId)}{selectField('Equipe', 'equipeId', teams, record?.equipeId)}{selectField('Turno', 'turnoId', shifts, record?.turnoId)}
           <label className="field-label">Data<input name="data" type="date" required defaultValue={String(record?.data ?? '').slice(0, 10)} /></label>
           <label className="field-label">Observações<textarea name="observacoes" rows={3} maxLength={4000} defaultValue={String(record?.observacoes ?? '')} /></label>
         </>}

@@ -476,3 +476,12 @@ textarea { min-height: 100px; resize: vertical; }
   .tvwall-sector-empty { gap: 12px; margin-top: 15px; }
   .tvwall-distribution-card { min-height: 82px; }
 }
+
+.tvwall-error { margin: 0; border: 1px solid #6a383b; border-radius: 9px; padding: 10px 13px; background: #361017; color: #f6dfe1; font-size: 13px; }
+.tvwall-distribution-line { display: grid; grid-template-columns: minmax(95px, 1fr) auto minmax(100px, 2fr) 42px; align-items: center; gap: 12px; color: #f3e2e3; font-size: clamp(11px, 1vw, 15px); }
+.tvwall-distribution-line > div { height: 10px; overflow: hidden; border-radius: 999px; background: #512027; }
+.tvwall-distribution-line > div i { display: block; height: 100%; border-radius: inherit; background: #ef5964; }
+.tvwall-distribution-line.positive > div i { background: #1eb887; }
+.tvwall-distribution-line.neutral > div i { background: #e8b54c; }
+.tvwall-distribution-line > small { color: #b99397; text-align: right; }
+@media (max-width: 620px) { .tvwall-distribution-line { grid-template-columns: minmax(80px, 1fr) auto minmax(70px, 1.5fr) 38px; gap: 8px; } }
