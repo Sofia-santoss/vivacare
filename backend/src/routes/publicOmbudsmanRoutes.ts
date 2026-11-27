@@ -21,7 +21,7 @@ class InvalidOmbudsmanRequest extends Error {
 
 function parseBody(value: unknown): OmbudsmanBody {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new InvalidOmbudsmanRequest('INVALID_SUBMISSION', 'O formato da solicitacao e invalido.');
+    throw new InvalidOmbudsmanRequest('INVALID_SUBMISSION', 'O formato da solicitação é inválido.');
   }
   const body = value as Record<string, unknown>;
   const keys = Object.keys(body);
@@ -32,19 +32,19 @@ function parseBody(value: unknown): OmbudsmanBody {
   }
   const name = body.name === undefined || body.name === null ? '' : body.name;
   if (typeof name !== 'string' || name.trim().length > 150) {
-    throw new InvalidOmbudsmanRequest('INVALID_NAME', 'O nome deve ter no maximo 150 caracteres.');
+    throw new InvalidOmbudsmanRequest('INVALID_NAME', 'O nome deve ter no máximo 150 caracteres.');
   }
   if (typeof body.phone !== 'string') {
-    throw new InvalidOmbudsmanRequest('INVALID_PHONE', 'Informe um telefone valido com DDD.');
+    throw new InvalidOmbudsmanRequest('INVALID_PHONE', 'Informe um telefone válido com DDD.');
   }
   const digits = body.phone.replace(/\D/g, '');
   const subscriber = digits.slice(2);
   const phoneValid = !/^(\d)\1+$/.test(digits) && /^[1-9][1-9]/.test(digits)
     && ((digits.length === 10 && /^[2-5]\d{7}$/.test(subscriber))
       || (digits.length === 11 && /^9\d{8}$/.test(subscriber)));
-  if (!phoneValid) throw new InvalidOmbudsmanRequest('INVALID_PHONE', 'Informe um telefone valido com DDD.');
+  if (!phoneValid) throw new InvalidOmbudsmanRequest('INVALID_PHONE', 'Informe um telefone válido com DDD.');
   if (typeof body.statement !== 'string' || !body.statement.trim() || body.statement.trim().length > 5000) {
-    throw new InvalidOmbudsmanRequest('INVALID_STATEMENT', 'O relato e obrigatorio e deve ter ate 5000 caracteres.');
+    throw new InvalidOmbudsmanRequest('INVALID_STATEMENT', 'O relato é obrigatório e deve ter até 5.000 caracteres.');
   }
   return {
     type: body.type as OmbudsmanBody['type'],
@@ -65,24 +65,24 @@ export function createPublicOmbudsmanRouter(pool: Pool): Router {
     if (error instanceof InvalidOmbudsmanRequest) {
       return res.status(400).json({ code: error.code, message: error.message });
     }
-    return res.status(400).json({ code: 'INVALID_SUBMISSION', message: 'O formato da solicitacao e invalido.' });
+    return res.status(400).json({ code: 'INVALID_SUBMISSION', message: 'O formato da solicitação é inválido.' });
   }
 
   const key = req.get('Idempotency-Key') ?? '';
   if (!uuidV4.test(key)) {
-    return res.status(400).json({ code: 'INVALID_IDEMPOTENCY_KEY', message: 'Envie uma chave UUIDv4 no cabecalho Idempotency-Key.' });
+    return res.status(400).json({ code: 'INVALID_IDEMPOTENCY_KEY', message: 'Envie uma chave UUIDv4 no cabeçalho Idempotency-Key.' });
   }
 
   const keyHash = createHash('sha256').update('vivacare:ombudsman-key:v1\0').update(key.toLowerCase()).digest('hex');
   const protocol = `VC-${keyHash.slice(0, 32).toUpperCase()}`;
   const client = await pool.connect().catch(() => null);
-  if (!client) return res.status(503).json({ code: 'PUBLIC_SUBMISSION_UNAVAILABLE', message: 'Nao foi possivel registrar sua solicitacao agora.' });
+  if (!client) return res.status(503).json({ code: 'PUBLIC_SUBMISSION_UNAVAILABLE', message: 'Não foi possível registrar sua solicitação agora.' });
   try {
     await client.query('BEGIN');
     await client.query('SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))', ['ouvidoria', keyHash]);
     const configuredHospitalId = process.env.PUBLIC_OMBUDSMAN_HOSPITAL_ID?.trim() || null;
     if (configuredHospitalId && !/^[1-9]\d*$/.test(configuredHospitalId)) {
-      throw new Error('PUBLIC_OMBUDSMAN_HOSPITAL_ID invalido.');
+      throw new Error('PUBLIC_OMBUDSMAN_HOSPITAL_ID inválido.');
     }
     const hospital = await client.query<{ id: string }>(
       `SELECT id::text FROM public.hospitais
@@ -90,7 +90,7 @@ export function createPublicOmbudsmanRouter(pool: Pool): Router {
         ORDER BY id LIMIT 2`,
       [configuredHospitalId],
     );
-    if (hospital.rows.length !== 1) throw new Error('Hospital alvo ausente ou ambiguo para a Ouvidoria publica.');
+    if (hospital.rows.length !== 1) throw new Error('Hospital-alvo ausente ou ambíguo para a Ouvidoria pública.');
     const hospitalId = hospital.rows[0]!.id;
     const existing = await client.query<{
       type: OmbudsmanBody['type']; name: string | null; phone: string | null; statement: string;
@@ -106,7 +106,7 @@ export function createPublicOmbudsmanRouter(pool: Pool): Router {
       const same = old.type === body.type && old.name === body.name && old.phone === body.phone
         && old.statement === body.statement && old.consent && !old.anonymous;
       if (!same) {
-        throw new InvalidOmbudsmanRequest('IDEMPOTENCY_KEY_REUSED', 'Esta chave ja foi usada com outro conteudo.');
+        throw new InvalidOmbudsmanRequest('IDEMPOTENCY_KEY_REUSED', 'Esta chave já foi usada com outro conteúdo.');
       }
       await client.query('COMMIT');
       return res.status(200).json({ status: 'already_submitted', protocol });
@@ -125,8 +125,8 @@ export function createPublicOmbudsmanRouter(pool: Pool): Router {
     if (error instanceof InvalidOmbudsmanRequest) {
       return res.status(409).json({ code: error.code, message: error.message });
     }
-    console.error('Falha ao registrar solicitacao publica da Ouvidoria.');
-    return res.status(503).json({ code: 'PUBLIC_SUBMISSION_UNAVAILABLE', message: 'Nao foi possivel registrar sua solicitacao agora. Tente novamente.' });
+    console.error('Falha ao registrar solicitação pública da Ouvidoria.');
+    return res.status(503).json({ code: 'PUBLIC_SUBMISSION_UNAVAILABLE', message: 'Não foi possível registrar sua solicitação agora. Tente novamente.' });
   } finally {
     client.release();
   }

@@ -21,7 +21,7 @@ publicSurveyRouter.get('/pesquisas/:codigo', async (req, res) => {
   const { codigo } = req.params;
   const filtroPublico = filtroPesquisaPublica(codigo);
   if (!filtroPublico) {
-    return res.status(400).json({ code: 'INVALID_PUBLIC_CODE', message: 'URL publica da pesquisa invalida.' });
+    return res.status(400).json({ code: 'INVALID_PUBLIC_CODE', message: 'A URL pública da pesquisa é inválida.' });
   }
 
   try {
@@ -55,12 +55,12 @@ publicSurveyRouter.get('/pesquisas/:codigo', async (req, res) => {
     if (resultado.rows.length === 0) {
       return res.status(404).json({
         code: 'PUBLIC_SURVEY_NOT_FOUND',
-        message: 'Pesquisa ativa nao encontrada para este codigo.',
+        message: 'Não foi encontrada uma pesquisa ativa para este código.',
       });
     }
 
     if (new Set(resultado.rows.map((linha) => linha.id)).size > 1) {
-      return res.status(409).json({ code: 'PUBLIC_SURVEY_AMBIGUOUS', message: 'Ha mais de uma pesquisa ativa para este setor.' });
+      return res.status(409).json({ code: 'PUBLIC_SURVEY_AMBIGUOUS', message: 'Há mais de uma pesquisa ativa para este setor.' });
     }
 
     const pesquisa = resultado.rows[0]!;
@@ -84,10 +84,10 @@ publicSurveyRouter.get('/pesquisas/:codigo', async (req, res) => {
       questions,
     });
   } catch {
-    console.error('Falha ao consultar a configuracao publica da pesquisa.');
+    console.error('Falha ao consultar a configuração pública da pesquisa.');
     return res.status(503).json({
       code: 'PUBLIC_SURVEY_UNAVAILABLE',
-      message: 'Nao foi possivel carregar a pesquisa agora. Tente novamente.',
+      message: 'Não foi possível carregar a pesquisa agora. Tente novamente.',
     });
   }
 });

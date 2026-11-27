@@ -11,21 +11,24 @@ type Answers = Record<string, PublicAnswerValue | undefined>;
 const previewSurvey: PublicSurvey = {
   id: 'preview-survey',
   publicCode: '00000000-0000-4000-8000-000000000001',
-  title: 'Pesquisa de demonstracao',
-  description: 'Previa local para conhecer o fluxo. Nenhuma resposta sera salva.',
-  sectorName: 'Recepcao',
+  title: 'Pesquisa de demonstração',
+  description: 'Prévia local para conhecer o fluxo. Nenhuma resposta será salva.',
+  sectorName: 'Recepção',
   questions: [
-    { id: 'preview-recepcao', text: 'Como foi o atendimento da Recepcao?', stage: 'RECEPCAO', answerType: 'NOTA', required: true, position: 1 },
+    { id: 'preview-recepcao', text: 'Como foi o atendimento da Recepção?', stage: 'RECEPCAO', answerType: 'NOTA', required: true, position: 1 },
     { id: 'preview-triagem', text: 'Como foi o atendimento da Triagem?', stage: 'TRIAGEM', answerType: 'NOTA', required: true, position: 2 },
     { id: 'preview-enfermagem', text: 'Como foi o atendimento da Enfermagem?', stage: 'ENFERMAGEM', answerType: 'NOTA', required: true, position: 3 },
-    { id: 'preview-medico', text: 'Como foi o atendimento da equipe medica?', stage: 'MEDICO', answerType: 'NOTA', required: true, position: 4 },
+    { id: 'preview-medico', text: 'Como foi o atendimento da equipe médica?', stage: 'MEDICO', answerType: 'NOTA', required: true, position: 4 },
   ],
 };
 const ratingLabels = ['Muito ruim', 'Ruim', 'Regular', 'Bom', 'Muito bom'];
+const stageLabels: Record<string, string> = {
+  GERAL: 'Geral', RECEPCAO: 'Recepção', TRIAGEM: 'Triagem', ENFERMAGEM: 'Enfermagem', MEDICO: 'Médico',
+};
 const screenLabels: Record<Screen, string> = {
-  access: 'Acesso a pesquisa', welcome: 'Boas-vindas', questions: 'Perguntas da pesquisa',
-  nps: 'Recomendacao do hospital', thanks: 'Pesquisa enviada', care: 'Contato com a Ouvidoria',
-  contact: 'Dados de contato para a Ouvidoria', done: 'Confirmacao da pesquisa',
+  access: 'Acesso à pesquisa', welcome: 'Boas-vindas', questions: 'Perguntas da pesquisa',
+  nps: 'Recomendação do hospital', thanks: 'Pesquisa enviada', care: 'Contato com a Ouvidoria',
+  contact: 'Dados de contato para a Ouvidoria', done: 'Confirmação da pesquisa',
 };
 
 function RatingFace({ index }: { index: number }) {
@@ -40,9 +43,9 @@ function RatingFace({ index }: { index: number }) {
 }
 
 function Brand() {
-  return <div className="brand" aria-label="Fundacao Hospitalar Dr. Oswaldo Diesel">
+  return <div className="brand" aria-label="Fundação Hospitalar Dr. Oswaldo Diesel">
     <span className="brand-mark" aria-hidden="true"><i /><i /><i /></span>
-    <span className="brand-name">FHDOD<small>Fundacao Hospitalar<br />Dr. Oswaldo Diesel</small></span>
+    <span className="brand-name">FHDOD<small>Fundação Hospitalar<br />Dr. Oswaldo Diesel</small></span>
   </div>;
 }
 
@@ -56,13 +59,13 @@ function validateAnswer(question: PublicSurveyQuestion, value: PublicAnswerValue
   }
   if (question.answerType === 'NOTA') return validateRating(value)?.message ?? null;
   if (question.answerType === 'TEXTO' && (typeof value !== 'string' || value.length > 4000)) {
-    return 'A resposta deve ter ate 4000 caracteres.';
+    return 'A resposta deve ter até 4.000 caracteres.';
   }
   if (question.answerType === 'OPCAO' && (typeof value !== 'string' || value.length > 200)) {
-    return 'A resposta deve ter ate 200 caracteres.';
+    return 'A resposta deve ter até 200 caracteres.';
   }
   if (question.answerType === 'SIM_NAO' && typeof value !== 'boolean') {
-    return 'Escolha Sim ou Nao para continuar.';
+    return 'Escolha “Sim” ou “Não” para continuar.';
   }
   return null;
 }
@@ -101,7 +104,7 @@ export function PublicSurveyFlow({ onStaffLogin }: { onStaffLogin: () => void })
 
   const loadSurvey = async (codeValue: string) => {
     const code = codeValue.trim();
-    if (!code) { setError('Abra a pesquisa pelo link ou QR Code do seu setor.'); return; }
+    if (!code) { setError('Abra a pesquisa pelo link ou pelo QR Code do seu setor.'); return; }
     setBusy(true);
     setError('');
     try {
@@ -113,7 +116,7 @@ export function PublicSurveyFlow({ onStaffLogin }: { onStaffLogin: () => void })
       surveyKey.current = null;
       go('welcome');
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Nao foi possivel carregar a pesquisa.');
+      setError(requestError instanceof Error ? requestError.message : 'Não foi possível carregar a pesquisa.');
     } finally {
       setBusy(false);
     }
@@ -177,7 +180,7 @@ export function PublicSurveyFlow({ onStaffLogin }: { onStaffLogin: () => void })
       await submitPublicSurvey(survey.publicCode, payload, surveyKey.current);
       go('thanks');
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Nao foi possivel enviar a pesquisa.');
+      setError(requestError instanceof Error ? requestError.message : 'Não foi possível enviar a pesquisa.');
     } finally {
       setBusy(false);
     }
@@ -209,7 +212,7 @@ export function PublicSurveyFlow({ onStaffLogin }: { onStaffLogin: () => void })
       setWantsContact(true);
       go('done');
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Nao foi possivel enviar a solicitacao a Ouvidoria.');
+      setError(requestError instanceof Error ? requestError.message : 'Não foi possível enviar a solicitação à Ouvidoria.');
     } finally {
       setBusy(false);
     }
@@ -226,39 +229,39 @@ export function PublicSurveyFlow({ onStaffLogin }: { onStaffLogin: () => void })
 
   return <main className="page">
     <section className="survey">
-      <header className="topbar"><Brand /><span className="survey-name">{previewMode ? 'Previa local' : survey ? survey.title : 'Pesquisa VivaCare'}</span></header>
+      <header className="topbar"><Brand /><span className="survey-name">{previewMode ? 'Prévia local' : survey ? survey.title : 'Pesquisa VivaCare'}</span></header>
       {progress > 0 && <div className="progress-wrap">
         <div className="progress-meta"><span>Etapa {completedSteps} de {totalSteps}</span><span>{progress}%</span></div>
         <div className="progress-track"><span style={{ width: `${progress}%` }} /></div>
       </div>}
       {screen === 'access' && <div className="screen access-screen" ref={screenRef} tabIndex={-1} role="region" aria-label={screenLabels[screen]}>
         <div className="welcome-art" aria-hidden="true"><span>✚</span></div>
-        <div className="eyebrow">SUA OPINIAO E IMPORTANTE</div><h1>Queremos saber como foi sua experiencia.</h1>
+        <div className="eyebrow">SUA OPINIÃO É IMPORTANTE</div><h1>Queremos saber como foi sua experiência.</h1>
         {previewMode ? <>
-          <div className="info-card"><span className="info-icon">▣</span><span><small>PREVIA LOCAL</small><strong>Explore as telas sem banco ou QR Code</strong></span></div>
-          <div className="privacy-card"><span>♧</span><p>As respostas desta demonstracao nao sao salvas e nenhum dado e enviado.</p></div>
-          <Button className="bottom-action" onClick={openPreview}>Abrir previa local</Button>
+          <div className="info-card"><span className="info-icon">▣</span><span><small>PRÉVIA LOCAL</small><strong>Explore as telas sem banco ou QR Code</strong></span></div>
+          <div className="privacy-card"><span>♧</span><p>As respostas desta demonstração não são salvas e nenhum dado é enviado.</p></div>
+          <Button className="bottom-action" onClick={openPreview}>Abrir prévia local</Button>
         </> : <>
-          <div className="info-card"><span className="info-icon">▣</span><span><small>ACESSO A PESQUISA</small><strong>Use o link ou QR Code do seu setor</strong></span></div>
-          <div className="privacy-card"><span>♧</span><p>A pesquisa abre pelo link ou QR Code fornecido pelo hospital. Nao e necessario digitar codigo.</p></div>
+          <div className="info-card"><span className="info-icon">▣</span><span><small>ACESSO À PESQUISA</small><strong>Use o link ou QR Code do seu setor</strong></span></div>
+          <div className="privacy-card"><span>♧</span><p>A pesquisa abre pelo link ou QR Code fornecido pelo hospital. Não é necessário digitar código.</p></div>
           {error && <p className="error-message" role="alert">{error}</p>}
-          <Button className="bottom-action" onClick={() => void loadSurvey(initialCode)} processando={busy} disabled={busy || !initialCode}>{busy ? 'Carregando pesquisa...' : 'Comecar avaliacao'}</Button>
+          <Button className="bottom-action" onClick={() => void loadSurvey(initialCode)} processando={busy} disabled={busy || !initialCode}>{busy ? 'Carregando pesquisa...' : 'Começar avaliação'}</Button>
           {!initialCode && <p className="muted">Abra o link recebido ou leia o QR Code do setor para continuar.</p>}
         </>}
         <button className="staff-link" onClick={onStaffLogin}>Acesso da equipe</button>
       </div>}      {screen === 'welcome' && <div className="screen" ref={screenRef} tabIndex={-1} role="region" aria-label={screenLabels[screen]}>
-        <BackButton onClick={goBack} /><div className="eyebrow">BOAS-VINDAS</div><h1>Sua opiniao ajuda a melhorar nosso atendimento.</h1>
+        <BackButton onClick={goBack} /><div className="eyebrow">BOAS-VINDAS</div><h1>Sua opinião ajuda a melhorar nosso atendimento.</h1>
         <div className="info-card"><span className="info-icon">▤</span><span><small>{survey?.sectorName}</small><strong>{survey?.title}</strong></span></div>
         {survey?.description && <p className="helper">{survey.description}</p>}
         <div className="time-note"><span>◷</span> Leva menos de 2 minutos.</div>
-        <ul className="promise-list"><li><span>✳</span> Uma pergunta por tela</li><li><span>♧</span> Respostas usadas para melhorar o cuidado</li><li><span>♡</span> Participacao voluntaria</li></ul>
-        <Button className="bottom-action" onClick={() => go(survey?.questions.length ? 'questions' : 'nps')}>Comecar</Button>
+        <ul className="promise-list"><li><span>✳</span> Uma pergunta por tela</li><li><span>♧</span> Respostas usadas para melhorar o cuidado</li><li><span>♡</span> Participação voluntária</li></ul>
+        <Button className="bottom-action" onClick={() => go(survey?.questions.length ? 'questions' : 'nps')}>Começar</Button>
       </div>}
       {screen === 'questions' && currentQuestion && <div className="screen" ref={screenRef} tabIndex={-1} role="region" aria-label={screenLabels[screen]}>
-        <BackButton onClick={goBack} /><div className="eyebrow">{currentQuestion.stage.replaceAll('_', ' ')}</div><h1>{currentQuestion.text}</h1>
+        <BackButton onClick={goBack} /><div className="eyebrow">{stageLabels[currentQuestion.stage] ?? currentQuestion.stage.replaceAll('_', ' ')}</div><h1>{currentQuestion.text}</h1>
         {currentQuestion.answerType === 'NOTA' && <>
-          <p className="helper">Toque na nota que melhor representa sua experiencia.</p>
-          <div className="rating-grid" role="group" aria-label="Avaliacao de 1 a 5">
+          <p className="helper">Toque na nota que melhor representa sua experiência.</p>
+          <div className="rating-grid" role="group" aria-label="Avaliação de 1 a 5">
             {ratingLabels.map((label, index) => <button key={label} className={'rating-option ' + (questionValue === index + 1 ? 'selected' : '')} onClick={() => setAnswer(currentQuestion.id, index + 1)} aria-label={`Nota ${index + 1}: ${label}`} aria-pressed={questionValue === index + 1}><RatingFace index={index} /><span>{index + 1}</span><small>{label}</small></button>)}
           </div>
         </>}
@@ -270,53 +273,53 @@ export function PublicSurveyFlow({ onStaffLogin }: { onStaffLogin: () => void })
           <label className="field-label" htmlFor="question-option">Sua resposta</label>
           <input id="question-option" maxLength={200} value={typeof questionValue === 'string' ? questionValue : ''} onChange={(event) => setAnswer(currentQuestion.id, event.target.value)} placeholder="Informe sua resposta" />
         </>}
-        {currentQuestion.answerType === 'SIM_NAO' && <div className="button-stack" role="group" aria-label="Escolha Sim ou Nao">
-          {[true, false].map((value) => <Button key={String(value)} variante={questionValue === value ? 'principal' : 'secundario'} aria-pressed={questionValue === value} onClick={() => setAnswer(currentQuestion.id, value)}>{value ? 'Sim' : 'Nao'}</Button>)}
+        {currentQuestion.answerType === 'SIM_NAO' && <div className="button-stack" role="group" aria-label="Escolha Sim ou Não">
+          {[true, false].map((value) => <Button key={String(value)} variante={questionValue === value ? 'principal' : 'secundario'} aria-pressed={questionValue === value} onClick={() => setAnswer(currentQuestion.id, value)}>{value ? 'Sim' : 'Não'}</Button>)}
         </div>}
-        {!currentQuestion.required && <p className="muted">Esta pergunta e opcional.</p>}
+        {!currentQuestion.required && <p className="muted">Esta pergunta é opcional.</p>}
         {error && <p className="error-message" role="alert">{error}</p>}
         <Button className="bottom-action" onClick={nextQuestion}>Continuar</Button>
       </div>}
       {screen === 'nps' && <div className="screen" ref={screenRef} tabIndex={-1} role="region" aria-label={screenLabels[screen]}>
-        <BackButton onClick={goBack} /><div className="eyebrow">RECOMENDACAO</div><h1>De 0 a 10, quanto voce recomendaria este hospital?</h1><p className="helper">0 significa pouco provavel e 10 muito provavel.</p>
-        <div className="nps-grid" role="group" aria-label="Nota de recomendacao de 0 a 10">{Array.from({ length: 11 }, (_, value) => <button key={value} className={'nps-option nps-' + (value < 6 ? 'low' : value < 8 ? 'mid' : 'high') + (nps === value ? ' selected' : '')} onClick={() => { setNps(value); surveyKey.current = null; setError(''); }} aria-pressed={nps === value}>{value}</button>)}</div>
-        <div className="scale-captions"><span>Pouco provavel</span><span>Muito provavel</span></div><div className="nps-legend"><span>0–5</span><span>6–7</span><span>8–10</span></div>
+        <BackButton onClick={goBack} /><div className="eyebrow">RECOMENDAÇÃO</div><h1>De 0 a 10, quanto você recomendaria este hospital?</h1><p className="helper">0 significa pouco provável e 10, muito provável.</p>
+        <div className="nps-grid" role="group" aria-label="Nota de recomendação de 0 a 10">{Array.from({ length: 11 }, (_, value) => <button key={value} className={'nps-option nps-' + (value < 6 ? 'low' : value < 8 ? 'mid' : 'high') + (nps === value ? ' selected' : '')} onClick={() => { setNps(value); surveyKey.current = null; setError(''); }} aria-pressed={nps === value}>{value}</button>)}</div>
+        <div className="scale-captions"><span>Pouco provável</span><span>Muito provável</span></div><div className="nps-legend"><span>0–5</span><span>6–7</span><span>8–10</span></div>
         {error && <p className="error-message" role="alert">{error}</p>}<Button className="bottom-action" onClick={submitSurvey} processando={busy} disabled={busy}>{busy ? 'Enviando resposta...' : 'Enviar pesquisa'}</Button>
       </div>}
       {screen === 'thanks' && <div className="screen done-screen" ref={screenRef} tabIndex={-1} role="region" aria-label={screenLabels[screen]}>
-        <div className="eyebrow">{previewMode ? 'PREVIA LOCAL' : 'RESPOSTA REGISTRADA'}</div><div className="done-icon">✓</div><h1>Obrigado por participar!</h1>
-        <p className="helper">{previewMode ? 'Previa local: a resposta nao foi salva nem enviada.' : 'Sua resposta foi enviada de forma anonima.'}</p>
+        <div className="eyebrow">{previewMode ? 'PRÉVIA LOCAL' : 'RESPOSTA REGISTRADA'}</div><div className="done-icon">✓</div><h1>Obrigado por participar!</h1>
+        <p className="helper">{previewMode ? 'Prévia local: a resposta não foi salva nem enviada.' : 'Sua resposta foi enviada de forma anônima.'}</p>
         <Button className="bottom-action" onClick={() => nps !== null && nps < 6 ? go('contact') : go('done')}>{nps !== null && nps < 6 ? 'Continuar para a Ouvidoria' : 'Continuar'}</Button>
       </div>}
       {screen === 'care' && <div className="screen" ref={screenRef} tabIndex={-1} role="region" aria-label={screenLabels[screen]}>
         <BackButton onClick={goBack} /><div className="eyebrow">CUIDADO E ESCUTA</div><h1>Podemos entender melhor o que aconteceu?</h1><div className="care-illustration" aria-hidden="true">♡</div>
-        <p className="helper">Sua resposta da pesquisa ja foi enviada anonimamente. Se quiser, abra uma solicitacao separada para a Ouvidoria. Os dados de contato nao serao vinculados a pesquisa.</p>
-        <div className="button-stack"><Button onClick={() => { setWantsContact(null); go('contact'); }}>Sim, quero falar com a Ouvidoria</Button><Button variante="secundario" onClick={() => { setWantsContact(false); go('done'); }}>Nao, obrigado</Button></div>
+        <p className="helper">Sua resposta da pesquisa já foi enviada anonimamente. Se quiser, abra uma solicitação separada para a Ouvidoria. Os dados de contato não serão vinculados à pesquisa.</p>
+        <div className="button-stack"><Button onClick={() => { setWantsContact(null); go('contact'); }}>Sim, quero falar com a Ouvidoria</Button><Button variante="secundario" onClick={() => { setWantsContact(false); go('done'); }}>Não, obrigado</Button></div>
       </div>}
       {screen === 'contact' && <div className="screen" ref={screenRef} tabIndex={-1} role="region" aria-label={screenLabels[screen]}>
         <BackButton onClick={goBack} /><div className="eyebrow">OUVIDORIA · CONSENTIMENTO E PRIVACIDADE</div><h1>{nps !== null && nps < 6 ? 'Sentimos que sua experiência poderia ter sido melhor. Quer contar à Ouvidoria como podemos melhorar?' : 'Como podemos encaminhar seu relato?'}</h1>
         <form className="contact-form" onSubmit={submitContact}>
-          <p className="helper">Esta solicitacao e separada da pesquisa e inclui os dados que voce informar.</p>
-          <label className="field-label" htmlFor="manifestation-type">Tipo de manifestacao</label>
+          <p className="helper">Esta solicitação é separada da pesquisa e inclui os dados que você informar.</p>
+          <label className="field-label" htmlFor="manifestation-type">Tipo de manifestação</label>
           <select id="manifestation-type" value={manifestationType} onChange={(event) => { setManifestationType(event.target.value as ManifestationType); contactKey.current = null; }}>
-            <option value="RECLAMACAO">Reclamacao</option><option value="SUGESTAO">Sugestao</option><option value="ELOGIO">Elogio</option>
+            <option value="RECLAMACAO">Reclamação</option><option value="SUGESTAO">Sugestão</option><option value="ELOGIO">Elogio</option>
           </select>
-          <label className="field-label" htmlFor="contact-name">Nome (opcional)</label><input id="contact-name" autoComplete="name" maxLength={150} value={name} onChange={(event) => { setName(event.target.value); contactKey.current = null; }} placeholder="Como podemos chamar voce?" />
+          <label className="field-label" htmlFor="contact-name">Nome (opcional)</label><input id="contact-name" autoComplete="name" maxLength={150} value={name} onChange={(event) => { setName(event.target.value); contactKey.current = null; }} placeholder="Como podemos chamar você?" />
           <label className="field-label" htmlFor="contact-phone">Telefone para retorno</label><input id="contact-phone" type="tel" inputMode="tel" autoComplete="tel" maxLength={15} value={phone} onChange={(event) => { setPhone(formatBrazilPhone(event.target.value)); contactKey.current = null; }} placeholder="(11) 98888-1234" />
-          <label className="field-label" htmlFor="contact-statement">Conte sua experiencia</label><textarea id="contact-statement" value={statement} onChange={(event) => { setStatement(event.target.value); contactKey.current = null; }} placeholder="Conte o que aconteceu." maxLength={5000} />
+          <label className="field-label" htmlFor="contact-statement">Conte sua experiência</label><textarea id="contact-statement" value={statement} onChange={(event) => { setStatement(event.target.value); contactKey.current = null; }} placeholder="Conte o que aconteceu." maxLength={5000} />
           <label className="consent"><input type="checkbox" checked={consent} onChange={(event) => { setConsent(event.target.checked); contactKey.current = null; }} /><span>Autorizo a Ouvidoria a entrar em contato pelo telefone informado.</span></label>
           {error && <p className="error-message" role="alert">{error}</p>}
-          <Button type="submit" className="bottom-action" processando={busy} disabled={busy}>{busy ? 'Enviando solicitacao...' : 'Enviar para a Ouvidoria'}</Button>
+          <Button type="submit" className="bottom-action" processando={busy} disabled={busy}>{busy ? 'Enviando solicitação...' : 'Enviar para a Ouvidoria'}</Button>
         </form>
       </div>}
       {screen === 'done' && <div className="screen done-screen" ref={screenRef} tabIndex={-1} role="region" aria-label={screenLabels[screen]}>
-        <div className="eyebrow">PESQUISA CONCLUIDA</div><div className="done-icon">✓</div><h1>Obrigado!</h1>
-        <div className="submission-summary"><strong>Resumo</strong><div><span>Perguntas</span><b>{survey?.questions.filter((question) => answers[question.id] !== undefined).length ?? 0} respondidas</b></div><div><span>Recomendacao</span><b>{nps === null ? 'Nao informada' : `${nps} de 10`}</b></div><div><span>Contato com a Ouvidoria</span><b>{contactSubmitted ? previewMode ? 'Previa local (nao enviada)' : 'Solicitacao enviada' : wantsContact ? 'Nao enviada' : 'Nao solicitado'}</b></div></div>
+        <div className="eyebrow">PESQUISA CONCLUÍDA</div><div className="done-icon">✓</div><h1>Obrigado!</h1>
+        <div className="submission-summary"><strong>Resumo</strong><div><span>Perguntas</span><b>{survey?.questions.filter((question) => answers[question.id] !== undefined).length ?? 0} respondidas</b></div><div><span>Recomendação</span><b>{nps === null ? 'Não informada' : `${nps} de 10`}</b></div><div><span>Contato com a Ouvidoria</span><b>{contactSubmitted ? previewMode ? 'Prévia local (não enviada)' : 'Solicitação enviada' : wantsContact ? 'Não enviada' : 'Não solicitado'}</b></div></div>
         {contactProtocol && <p className="helper">Protocolo da Ouvidoria: <strong>{contactProtocol}</strong></p>}
-        {wantsContact && !contactSubmitted && <p className="error-message" role="status">A solicitacao de contato nao foi enviada.</p>}
+        {wantsContact && !contactSubmitted && <p className="error-message" role="status">A solicitação de contato não foi enviada.</p>}
         <Button className="bottom-action" onClick={reset}>Encerrar</Button>
       </div>}
     </section>
-    <p className="page-foot">VivaCare · Cuidar tambem e ouvir</p>
+    <p className="page-foot">VivaCare · Cuidar também é ouvir</p>
   </main>;
 }

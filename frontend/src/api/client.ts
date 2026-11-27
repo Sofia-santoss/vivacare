@@ -41,7 +41,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       },
     });
   } catch {
-    throw new ApiClientError('Nao foi possivel conectar a API. Verifique se o backend esta iniciado.', 0, 'NETWORK_ERROR');
+    throw new ApiClientError('Não foi possível conectar à API. Verifique se o backend está iniciado.', 0, 'NETWORK_ERROR');
   }
 
   const body: unknown = await response.json().catch(() => null);
@@ -49,7 +49,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const errorBody = body as Partial<ApiErrorBody> | null;
     const apiMessage = errorBody?.message ?? (body as { error?: string } | null)?.error;
     throw new ApiClientError(
-      apiMessage || 'A solicitacao nao foi concluida. Tente novamente.',
+      apiMessage || 'A solicitação não foi concluída. Tente novamente.',
       response.status,
       errorBody?.code || 'HTTP_ERROR',
     );

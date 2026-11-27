@@ -1,7 +1,7 @@
 /**
  * Contratos iniciais derivados do schema PostgreSQL e de docs/PRIVACIDADE_PESQUISAS.md.
  * A pesquisa usa GET/POST /api/public/pesquisas/:codigo; a Ouvidoria tem POST /api/public/ouvidoria separado.
- * Dados de contato ficam fora da submissÃ£o pÃºblica e exigem contrato separado para Ouvidoria.
+ * Dados de contato ficam fora da submissão pública e exigem contrato separado para a Ouvidoria.
  */
 export type DatabaseId = string;
 
@@ -33,13 +33,13 @@ export interface PublicSurveyAnswer {
   value: PublicAnswerValue;
 }
 
-/** Payload pÃºblico anÃ´nimo: sem nome, telefone ou texto de contato. */
+/** Payload público anônimo: sem nome, telefone ou texto de contato. */
 export interface SubmitPublicSurveyBody {
   nps: number;
   answers: PublicSurveyAnswer[];
 }
 
-/** A chave de idempotÃªncia pertence ao transporte (por exemplo, header), nÃ£o ao payload. */
+/** A chave de idempotência pertence ao transporte (por exemplo, ao cabeçalho), não ao payload. */
 export interface SubmitPublicSurveyMetadata {
   idempotencyKey: string;
 }
