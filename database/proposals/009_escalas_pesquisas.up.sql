@@ -1,4 +1,4 @@
--- Proposta 008 (a migration oficial 007_privilegios_usuario_setores já existe).
+-- Proposta 009 (a migration oficial 007_privilegios_usuario_setores já existe).
 -- Não aplicar sem revisão; estratégia forward-only para preservar respostas, associações e idempotência.
 
 -- Membership history is included here because 006 is already an official migration version.
@@ -52,10 +52,10 @@ DECLARE
 BEGIN
   SELECT count(*) INTO note_count FROM public.perguntas WHERE tipo_resposta='NOTA';
   IF note_count<>10 THEN
-    RAISE EXCEPTION 'Inventario NOTA divergente: esperadas exatamente as 10 perguntas aprovadas; reexecute a auditoria antes de promover 008.';
+    RAISE EXCEPTION 'Inventario NOTA divergente: esperadas exatamente as 10 perguntas aprovadas; reexecute a auditoria antes de promover 009.';
   END IF;
   IF EXISTS (SELECT 1 FROM public.perguntas WHERE tipo_resposta='NOTA' AND finalidade_nota IS NULL) THEN
-    RAISE EXCEPTION 'Pergunta NOTA sem finalidade aprovada; classifique-a antes de promover a migration 008.';
+    RAISE EXCEPTION 'Pergunta NOTA sem finalidade aprovada; classifique-a antes de promover a migration 009.';
   END IF;
 END;
 $$;

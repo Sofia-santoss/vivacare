@@ -1,6 +1,6 @@
-# Proposta de migration 008: escalas e submissões públicas
+# Proposta de migration 009: escalas e submissões públicas
 
-Esta proposta continua fora de `database/migrations` e não é descoberta pelo runner. Ela depende do baseline e das migrations oficiais 001–007 aplicadas na ordem versionada, incluindo `eventos_auditoria` (003) e os privilégios de `usuario_setores` (007). Não executar nem promover enquanto o ledger e a estrutura real não forem reconciliados.
+Esta proposta continua fora de `database/migrations` e não é descoberta pelo runner. Ela depende do baseline e das migrations oficiais 001–008 aplicadas na ordem versionada, incluindo `eventos_auditoria` (003) e os privilégios de `usuario_setores` (007). Não executar nem promover enquanto o ledger e a estrutura real não forem reconciliados.
 
 O DDL é uma migration de execução única, não um script para reaplicar manualmente: contém `ADD COLUMN`, `ADD CONSTRAINT` e `CREATE TABLE` deliberadamente sem `IF NOT EXISTS`. O runner versionado deve garantir aplicação única e checksum; a idempotência das submissões públicas é implementada separadamente por chave única e hash do payload.
 
@@ -27,7 +27,7 @@ A regra de negócio permite salvar a resposta sem equipe quando não há escala 
 
 ## Ouvidoria
 
-O endpoint permanece separado e grava manifestação sem `resposta_id`. A proposta 008 adiciona uma constraint validada que exige `manifestacoes.resposta_id IS NULL` e remove o índice legado de associação. Se já houver manifestação vinculada, a validação da constraint falha sem apagar nem reescrever dados; a promoção deve parar para decisão explícita.
+O endpoint permanece separado e grava manifestação sem `resposta_id`. A proposta 009 adiciona uma constraint validada que exige `manifestacoes.resposta_id IS NULL` e remove o índice legado de associação. Se já houver manifestação vinculada, a validação da constraint falha sem apagar nem reescrever dados; a promoção deve parar para decisão explícita.
 
 APP recebe somente SELECT, INSERT e UPDATE necessarios a tabela de limite IP; nao recebe DELETE. Em respostas, INSERT fica limitado a pesquisa_id, turno_id, nota_nps e respondida_em. O repositorio omite os campos de anonimato e contato, usando os defaults do baseline (anonima=true, autoriza_contato=false e contato nulo); APP nao pode inserir telefone nem alterar consentimento. MAINT recebe SELECT somente de janela_iniciada_em e DELETE somente nessa tabela. As permissoes ficam no proprio up.sql.
 

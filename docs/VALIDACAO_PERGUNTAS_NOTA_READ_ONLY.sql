@@ -1,6 +1,6 @@
 -- Complemento somente leitura para identificar o contexto de cada pergunta NOTA.
 -- O comando db:audit:public-surveys:readonly executa esta consulta em transação READ ONLY.
--- Não inclui finalidade_nota porque essa coluna só é introduzida pela proposta 008.
+-- Não inclui finalidade_nota porque essa coluna só é introduzida pela proposta 009.
 
 SELECT q.id AS pergunta_id,
        q.pesquisa_id,

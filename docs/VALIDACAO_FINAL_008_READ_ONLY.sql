@@ -1,4 +1,4 @@
--- Pacote READ ONLY para reconciliar as pendencias antes de avaliar a proposta 008.
+-- Pacote READ ONLY para reconciliar as pendencias antes de avaliar a proposta 009.
 -- Executar com psql. Os comandos \gexec/\gset/\if abaixo apenas controlam SELECTs.
 -- Nenhum resultado deste arquivo prova, por si so, que uma migration foi aplicada.
 

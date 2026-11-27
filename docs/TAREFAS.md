@@ -30,4 +30,4 @@ Responsáveis: **Pessoa A** = Raissa (backend e banco) · **Pessoa B** = Sofia (
 
 ## Dependências de banco
 
-A proposta `database/proposals/008_escalas_pesquisas.up.sql` ainda não faz parte de `database/migrations`. A versão oficial 008 já está ocupada por `008_manifestacoes_hospital_scope`; a proposta não deve ser aplicada nem promovida antes da reconciliação descrita em `docs/API_PUBLICA_PENDENCIAS.md`. Os limites aprovados para pesquisa e Ouvidoria são 60 requisições por IP a cada 60 segundos, com contadores independentes; a limpeza horária depende do Cron Job separado com identidade MAINT.
+A proposta `database/proposals/009_escalas_pesquisas.up.sql` ainda não faz parte de `database/migrations`. A versão oficial 008 já está ocupada por `008_manifestacoes_hospital_scope`; a proposta não deve ser aplicada nem promovida antes da reconciliação descrita em `docs/API_PUBLICA_PENDENCIAS.md`. Os limites aprovados para pesquisa e Ouvidoria são 60 requisições por IP a cada 60 segundos, com contadores independentes; a limpeza horária depende do Cron Job separado com identidade MAINT.

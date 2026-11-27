@@ -37,7 +37,7 @@ SELECT member_role.rolname AS member_role,
     OR granted_role.rolname IN ('vivacare_app','vivacare_auth_maintenance')
  ORDER BY member_role.rolname,granted_role.rolname;
 
--- 4) Objetos e colunas que a proposta 008 espera. Ausência não significa que uma migration
+-- 4) Objetos e colunas que a proposta 009 espera. Ausência não significa que uma migration
 -- esteja pendente: compare com histórico/backup operacional antes de qualquer ação.
 SELECT name,to_regclass(format('public.%I',name)) IS NOT NULL AS relation_exists
   FROM unnest(ARRAY[
