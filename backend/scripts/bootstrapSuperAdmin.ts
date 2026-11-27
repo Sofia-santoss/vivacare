@@ -176,7 +176,7 @@ async function bootstrap(): Promise<void> {
 
       const existing = await client.query(
         `SELECT 1 FROM public.usuarios u JOIN public.perfis p ON p.id=u.perfil_id
-          WHERE p.codigo='SUPER_ADMIN' LIMIT 1 FOR UPDATE OF u`,
+          WHERE p.codigo='SUPER_ADMIN' LIMIT 1`,
       );
       if (existing.rowCount) throw new Error('Bootstrap bloqueado: já existe uma conta SUPER_ADMIN.');
 
