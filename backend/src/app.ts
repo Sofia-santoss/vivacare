@@ -1,4 +1,6 @@
 import express from 'express';
+import { readFile } from 'node:fs/promises';
+import swaggerUi from 'swagger-ui-express';
 import { pool } from './db/pool.js';
 import { publicSurveyRouter } from './routes/publicSurveyRoutes.js';
 import { createPublicOmbudsmanRouter } from './routes/publicOmbudsmanRoutes.js';
@@ -39,6 +41,18 @@ import { createPublicIpRateLimit, createPublicSubmissionRateLimit } from './pesq
 
 export const app = express();
 app.disable('x-powered-by');
+const openApiSpecUrl = new URL('../openapi.yaml', import.meta.url);
+app.get('/openapi.yaml', async (_req, res, next) => {
+  try {
+    res.type('application/yaml').send(await readFile(openApiSpecUrl, 'utf8'));
+  } catch (error) {
+    next(error);
+  }
+});
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(null, {
+  swaggerOptions: { url: '/openapi.yaml' },
+  customSiteTitle: 'VivaCare API',
+}));
 const allowedOrigins = parseAllowedOrigins(process.env.AUTH_ALLOWED_ORIGINS ?? process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173');
 const nodeEnv = parseNodeEnv(process.env.NODE_ENV);
 const trustedProxyIps = parseTrustedProxyIps(process.env.TRUSTED_PROXY_IPS);

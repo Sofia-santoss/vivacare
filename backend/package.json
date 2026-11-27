@@ -16,6 +16,7 @@
     "db:migrate": "tsx --env-file-if-exists=.env src/db/migrator.ts",
     "db:cleanup:public-limits": "node dist/db/cleanupPublicSubmissionLimits.js",
     "test": "vitest run --exclude src/auth/loginAttempts.integration.test.ts --exclude src/db/migrator.integration.test.ts --exclude src/setores/setores.integration.test.ts --exclude src/usuarios/usuarios.integration.test.ts --exclude src/pesquisas/submissao.integration.test.ts --configLoader native --pool threads --maxWorkers 1",
+    "test:coverage": "npm run test -- --coverage --coverage.reporter=text --coverage.reporter=html",
     "test:surveys:guard": "vitest run src/config/surveysTestDbGuard.test.ts src/config/surveysTestDbResetGuard.test.ts --configLoader native --pool threads --maxWorkers 1",
     "test:surveys:diagnose-reset": "node scripts/diagnose-surveys-test-reset.mjs",
     "test:surveys:db": "node scripts/assert-surveys-test-db.mjs && vitest run src/pesquisas/submissao.integration.test.ts --configLoader native --pool threads --maxWorkers 1",
@@ -28,13 +29,16 @@
   "dependencies": {
     "express": "5.3.0",
     "nodemailer": "10.6.1",
-    "pg": "8.23.1"
+    "pg": "8.23.1",
+    "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
     "@types/express": "5.0.6",
     "@types/node": "24.19.2",
     "@types/pg": "8.23.1",
     "@types/supertest": "7.2.1",
+    "@types/swagger-ui-express": "^4.1.8",
+    "@vitest/coverage-v8": "^5.0.5",
     "supertest": "7.3.1",
     "tsx": "4.23.15",
     "typescript": "6.0.3",

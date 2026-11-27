@@ -120,14 +120,15 @@ O schema atual não oferece uma lista de opções para perguntas do tipo `OPCAO`
 - [Plano e relatório de testes](docs/plano-e-relatorio-de-testes.md)
 - [Quadro Kanban do VivaCare no Trello](https://trello.com/b/F2VHl9RQ/vivacare-pesquisa-hospitalar)
 - [Kanban: fluxo e tarefas iniciais](docs/KANBAN.md)
-- [Especificação OpenAPI](docs/openapi.yaml)
+- [Documentação interativa da API (Swagger UI)](https://vivacare-jry5.onrender.com/docs)
+- [Especificação OpenAPI](docs/openapi.yaml) · [OpenAPI servido pelo backend](https://vivacare-jry5.onrender.com/openapi.yaml)
 - [Privacidade das pesquisas](docs/PRIVACIDADE_PESQUISAS.md)
 - [Modelo de dados, entidades e paradigma](docs/modelo-de-dados-e-requisitos.md)
 - [Padrões de nomenclatura do banco](docs/padroes-banco-de-dados.md)
 - [Repositórios de persistência e consultas críticas](docs/mapeamento-classes-e-consultas.md)
 - [Segurança e hospedagem cloud do banco](docs/seguranca-e-nuvem.md)
 
-A especificação OpenAPI está versionada no repositório; a interface Swagger online ainda depende de publicação. O quadro Kanban compartilhado está disponível no [Trello](https://trello.com/b/F2VHl9RQ/vivacare-pesquisa-hospitalar).
+A interface Swagger UI e o arquivo OpenAPI são publicados pelo backend. A página pode demorar alguns segundos para abrir quando o serviço Render estiver inativo. O quadro Kanban compartilhado está disponível no [Trello](https://trello.com/b/F2VHl9RQ/vivacare-pesquisa-hospitalar).
 
 ## Verificações de código
 

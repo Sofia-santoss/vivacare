@@ -7,6 +7,8 @@ info:
     Rotas privadas exigem cookie de sessão e, em operações mutáveis, proteção CSRF.
     A disponibilidade real depende do schema, migrations e configuração do PostgreSQL.
 servers:
+  - url: https://vivacare-jry5.onrender.com
+    description: Backend publicado no Render
   - url: http://localhost:3000
     description: Desenvolvimento local
 tags:
@@ -21,6 +23,8 @@ tags:
   - name: Pesquisas
   - name: Perguntas
   - name: Usuários
+  - name: Indicadores
+  - name: Ouvidoria
 paths:
   /health:
     get:
@@ -164,6 +168,186 @@ paths:
           $ref: '#/components/responses/Erro'
         '503':
           $ref: '#/components/responses/Erro'
+  /api/indicadores:
+    get:
+      tags: [Indicadores]
+      operationId: listarIndicadoresNps
+      summary: Lista indicadores NPS agregados por setor, data e turno
+      description: Requer permissão de leitura de indicadores do hospital ou dos setores associados. Só retorna agregados com pelo menos três respostas.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        '200':
+          description: Indicadores e paginação
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/IndicadorNps' }
+                  pagination: { $ref: '#/components/schemas/Paginacao' }
+        '400': { $ref: '#/components/responses/Erro' }
+        '401': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+        '503': { $ref: '#/components/responses/Erro' }
+  /api/ouvidoria/setores:
+    get:
+      tags: [Ouvidoria]
+      operationId: listarSetoresParaClassificacao
+      summary: Lista setores ativos do hospital para classificar manifestações
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Lista' }
+        '401': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+  /api/ouvidoria/manifestacoes:
+    get:
+      tags: [Ouvidoria]
+      operationId: listarManifestacoes
+      summary: Lista manifestações do hospital autenticado
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+        - name: status
+          in: query
+          schema: { type: string, enum: [RECEBIDA, EM_ANALISE, AGUARDANDO_CONTATO, EM_TRATAMENTO, CONCLUIDA, ARQUIVADA] }
+      responses:
+        '200': { $ref: '#/components/responses/Lista' }
+        '400': { $ref: '#/components/responses/Erro' }
+        '401': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+  /api/ouvidoria/manifestacoes/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Ouvidoria]
+      operationId: obterManifestacao
+      summary: Obtém manifestação pertencente ao hospital autenticado
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Registro' }
+        '400': { $ref: '#/components/responses/Erro' }
+        '401': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+        '404': { $ref: '#/components/responses/Erro' }
+  /api/ouvidoria/manifestacoes/{id}/historico:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Ouvidoria]
+      operationId: listarHistoricoManifestacao
+      summary: Lista o histórico auditável da manifestação
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Lista' }
+        '400': { $ref: '#/components/responses/Erro' }
+        '401': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+        '404': { $ref: '#/components/responses/Erro' }
+  /api/ouvidoria/manifestacoes/{id}/classificacao:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    patch:
+      tags: [Ouvidoria]
+      operationId: classificarManifestacao
+      summary: Associa manifestação aberta a um setor do mesmo hospital
+      security: [{ sessionCookie: [], csrfHeader: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [setorId]
+              properties:
+                setorId: { type: string, pattern: '^[1-9][0-9]*$' }
+      responses:
+        '204': { description: Classificação registrada }
+        '400': { $ref: '#/components/responses/Erro' }
+        '401': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+        '404': { $ref: '#/components/responses/Erro' }
+  /api/ouvidoria/manifestacoes/{id}/status:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    patch:
+      tags: [Ouvidoria]
+      operationId: atualizarStatusManifestacao
+      summary: Atualiza o status de manifestação aberta
+      security: [{ sessionCookie: [], csrfHeader: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [status]
+              properties:
+                status: { type: string, enum: [EM_ANALISE, AGUARDANDO_CONTATO, EM_TRATAMENTO] }
+      responses:
+        '204': { description: Status atualizado }
+        '400': { $ref: '#/components/responses/Erro' }
+        '401': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+        '404': { $ref: '#/components/responses/Erro' }
+  /api/ouvidoria/manifestacoes/{id}/tentativas:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [Ouvidoria]
+      operationId: registrarTentativaContato
+      summary: Registra tentativa de contato no histórico
+      security: [{ sessionCookie: [], csrfHeader: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [descricao, contatoRealizado]
+              properties:
+                descricao: { type: string, minLength: 1, maxLength: 1000 }
+                contatoRealizado: { type: boolean }
+      responses:
+        '201': { description: Tentativa registrada }
+        '400': { $ref: '#/components/responses/Erro' }
+        '401': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+        '404': { $ref: '#/components/responses/Erro' }
+  /api/ouvidoria/manifestacoes/{id}/conclusao:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [Ouvidoria]
+      operationId: concluirManifestacao
+      summary: Conclui manifestação aberta e registra resposta final
+      security: [{ sessionCookie: [], csrfHeader: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [respostaFinal]
+              properties:
+                respostaFinal: { type: string, minLength: 1, maxLength: 5000 }
+      responses:
+        '204': { description: Manifestação concluída }
+        '400': { $ref: '#/components/responses/Erro' }
+        '401': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+        '404': { $ref: '#/components/responses/Erro' }
   /api/auth/login:
     post:
       tags: [Autenticação]
@@ -1151,3 +1335,16 @@ components:
       properties:
         status: { type: string, enum: [submitted, already_submitted] }
         protocol: { type: string }
+    IndicadorNps:
+      type: object
+      properties:
+        setor_id: { type: string }
+        setor: { type: string }
+        data_resposta: { type: string, format: date }
+        turno_id: { type: [string, 'null'] }
+        turno: { type: [string, 'null'] }
+        total_respostas: { type: string }
+        total_promotores: { type: string }
+        total_neutros: { type: string }
+        total_detratores: { type: string }
+        nps: { type: string }

@@ -1,6 +1,6 @@
 # Plano e relatório de testes — VivaCare
 
-**Versão:** 0.1 · **Data do registro:** 24/11/2026 · **Estado:** plano inicial; execução completa pendente
+**Versão:** 0.2 · **Data do registro:** 26/11/2026 · **Estado:** plano em execução; jornadas ponta a ponta e cobertura frontend pendentes
 
 ## 1. Objetivos
 
@@ -50,15 +50,17 @@ Verificar validações, contratos HTTP, autenticação/autorização, privacidad
 |---|---|---|---|
 | 26/11/2026 | Backend (`npm test`) | Aprovado: 51 arquivos, 343 testes. | Suítes unitárias/API sem banco; as integrações PostgreSQL são excluídas por padrão. |
 | 26/11/2026 | Frontend (`npm test`) | Aprovado: 7 testes. | Validações de formulário e credenciais. |
+| 26/11/2026 | Cobertura backend (`npm run test:coverage`) | Aprovado: 51 arquivos e 343 testes; statements 69,14%, branches 62,40%, funções 78,41%, linhas 74,53%. | Vitest 5.0.5 com provider V8; integrações PostgreSQL excluídas por padrão. Relatório HTML gerado localmente e ignorado pelo Git. |
 | 26/11/2026 | Typecheck/build backend e typecheck/build frontend | Aprovados. | Executados após conectar a Visão geral e o CRUD de pesquisas/perguntas às APIs. |
 | 24/11/2026 | Typecheck frontend (`npm run typecheck` em `frontend`) | Aprovado em execução anterior desta sessão de trabalho. | Repetir após integração da documentação se houver mudanças de código. |
 | 24/11/2026 | Typecheck backend (`npm run typecheck` em `backend`) | Aprovado em execução anterior desta sessão de trabalho. | Nenhum arquivo do backend foi alterado nesta tarefa documental. |
 | 26/11/2026 | Integração de migrations (`npm run test:db`) | Aprovado: 2 testes, código de saída 0, PostgreSQL local 18.4. | Resultado informado pela dupla; variáveis temporárias removidas. O banco descartável ficou aguardando exclusão. |
-| 24/11/2026 | Tentativa de `npm test` nas suítes frontend/backend | Não executado. | A revisão automática do ambiente recusou a execução sem apresentar motivo; nenhum teste foi iniciado. Não há cobertura medida nesta versão do relatório. |
-| Pendente | Integrações PostgreSQL de autenticação, setores, usuários e submissão pública | — | Executar os comandos guardados em banco local descartável. `test:db` cobre somente a cadeia de migrations. |
+| 26/11/2026 | Integração de submissões públicas (`npm run test:surveys:db`) | Aprovado: 8/8 testes, PostgreSQL local descartável 18.4. | Resultado informado pela dupla: SETUP, APP e MAINT autenticaram; `resetReady: true`; submissão anônima, idempotência, concorrência, escalas, Ouvidoria, rate limit e privilégios mínimos. Nenhuma alteração no Aiven. Não foi executado nesta sessão. |
+| 24/11/2026 | Tentativa de `npm test` nas suítes frontend/backend | Não executado naquela tentativa. | A revisão automática do ambiente recusou a execução sem apresentar motivo; nenhum teste foi iniciado naquele dia. A cobertura foi medida posteriormente em 26/11/2026. |
+| Pendente | Integrações PostgreSQL de autenticação, setores e usuários | — | Executar os comandos guardados em banco local descartável. `test:db` cobre somente a cadeia de migrations e `test:surveys:db` cobre as submissões públicas. |
 | Pendente | Fluxo ponta a ponta e acessibilidade | — | Registrar navegador, dados sintéticos, evidências e defeitos corrigidos. |
 
-**Cobertura:** não há relatório numérico registrado. O `package.json` não declara atualmente um provider de cobertura Vitest. Definir/instalar e executar cobertura só depois de combinar dependência e comando com a dupla.
+**Cobertura:** no backend, 69,14% de statements, 62,40% de branches, 78,41% de funções e 74,53% de linhas, medidos com `npm --prefix backend run test:coverage`. A cobertura frontend ainda não está instrumentada. Cobertura de código não substitui testes de integração e ponta a ponta.
 
 ## 6. Registro de falhas
 
