@@ -4,10 +4,10 @@ import {describe,expect,it} from 'vitest';
 
 const root=resolve(process.cwd(),'..');
 
-describe('privilegios de escrita da proposta 008',()=>{
+describe('privilegios de escrita da proposta 009',()=>{
  it('limita INSERT de respostas aos campos sem identidade ou contato',async()=>{
   const [sql,repository,baseline]=await Promise.all([
-   readFile(resolve(root,'database/proposals/008_escalas_pesquisas.up.sql'),'utf8'),
+   readFile(resolve(root,'database/proposals/009_escalas_pesquisas.up.sql'),'utf8'),
    readFile(resolve(root,'backend/src/pesquisas/submissaoRepository.ts'),'utf8'),
    readFile(resolve(root,'database/baseline/000_schema.sql'),'utf8'),
   ]);

@@ -48,6 +48,9 @@ Verificar validações, contratos HTTP, autenticação/autorização, privacidad
 
 | Data | Escopo/comando | Resultado | Observações |
 |---|---|---|---|
+| 27/11/2026 | Backend (`npm test`) após renumeração para 009 | Aprovado: 51 arquivos, 343 testes. | Suítes sem banco; inclui testes estáticos atualizados para localizar a proposta 009. |
+| 27/11/2026 | Integração da cadeia (`npm run test:db`) após correção sintática de 008 | Não executado; guard bloqueou antes do Vitest. | Faltavam `VIVACARE_TEST_DB_*` e `NODE_ENV=test`. Nenhuma conexão ou alteração de banco ocorreu. |
+| 27/11/2026 | Integração da proposta (`npm run test:surveys:db`) após renumeração para 009 | Não executado; guard bloqueou antes do Vitest. | Faltavam as variáveis `VIVACARE_SURVEYS_TEST_DB_*` e `NODE_ENV=test`. Nenhuma conexão ou alteração de banco ocorreu. |
 | 26/11/2026 | Backend (`npm test`) | Aprovado: 51 arquivos, 343 testes. | Suítes unitárias/API sem banco; as integrações PostgreSQL são excluídas por padrão. |
 | 26/11/2026 | Frontend (`npm test`) | Aprovado: 7 testes. | Validações de formulário e credenciais. |
 | 26/11/2026 | Cobertura backend (`npm run test:coverage`) | Aprovado: 51 arquivos e 343 testes; statements 69,14%, branches 62,40%, funções 78,41%, linhas 74,53%. | Vitest 5.0.5 com provider V8; integrações PostgreSQL excluídas por padrão. Relatório HTML gerado localmente e ignorado pelo Git. |

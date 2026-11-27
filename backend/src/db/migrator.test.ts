@@ -166,8 +166,8 @@ describe('proteções do runner versionado', () => {
   it('discovers the official migrations and does not discover the separate proposal', async () => {
     const migrations = await discoverMigrations(migrationDirectory);
     const proposals = await readdir(resolve(root, 'database/proposals'));
-    expect(proposals).toContain('008_escalas_pesquisas.up.sql');
-    expect(migrations.map((migration) => migration.file)).not.toContain('008_escalas_pesquisas.up.sql');
+    expect(proposals).toContain('009_escalas_pesquisas.up.sql');
+    expect(migrations.map((migration) => migration.file)).not.toContain('009_escalas_pesquisas.up.sql');
     expect(migrations.at(-1)?.version).toBe('008_manifestacoes_hospital_scope');
   });
 

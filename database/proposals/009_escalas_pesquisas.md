@@ -51,7 +51,7 @@ A limpeza dos buckets expirados foi preparada no comando `npm run db:cleanup:pub
 2. Confirmar a identidade da aplicação e os privilégios efetivos; aplicar a migration oficial 007 somente se estiver pendente conforme histórico validado.
 3. Confirmar que as dez tuplas aprovadas (pergunta_id, pesquisa_id, etapa) ainda correspondem ao inventario do banco alvo; a proposta falha se houver pergunta NOTA extra, ausente ou divergente. Os limites publicos 60/60 ja foram aprovados.
 4. Validar esta proposta em PostgreSQL descartável com o dump/base compatível e executar os testes de integração do harness.
-5. Após revisão e aprovação, promover o conteúdo para uma migration oficial 008 imutável, atualizar o runner/documentação e aplicar somente pela cadeia oficial. Não alterar a proposta para esconder divergências.
+5. Após revisão e aprovação, promover o conteúdo para uma migration oficial 009 imutável, atualizar o runner/documentação e aplicar somente pela cadeia oficial. Não alterar a proposta para esconder divergências.
 6. Só então disponibilizar o código que consulta as colunas/tabelas adicionadas.
 
 Não há rollback destrutivo. A remoção de snapshots, hashes de idempotência ou buckets pode perder rastreabilidade ou reabrir submissões duplicadas; qualquer reversão deve ser uma migration forward-only revisada.

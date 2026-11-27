@@ -123,7 +123,7 @@ describe('submissÃ£o e associaÃ§Ã£o (Pool mockado; nÃ£o valida concorrÃ
   expect(questionQuery).toContain("finalidade_nota IS DISTINCT FROM 'NPS_GERAL'");
  });
  it('proposta exclui respostas sem associaÃ§Ã£o dos agregados de equipe e suprime grupos pequenos',()=>{
-  const proposal=readFileSync(resolve(process.cwd(),'../database/proposals/008_escalas_pesquisas.up.sql'),'utf8');
+  const proposal=readFileSync(resolve(process.cwd(),'../database/proposals/009_escalas_pesquisas.up.sql'),'utf8');
   expect(proposal).toMatch(/CREATE VIEW public\.vw_indicadores_nps_equipe_dia_turno[\s\S]*?WHERE re\.resultado='ASSOCIADA'/);
   expect(proposal.match(/HAVING count\(\*\)>=3/g)).toHaveLength(2);
   const general=proposal.slice(proposal.indexOf('CREATE OR REPLACE VIEW public.vw_indicadores_nps_setor_dia_turno'),proposal.indexOf('-- Team indicators'));
@@ -132,7 +132,7 @@ describe('submissÃ£o e associaÃ§Ã£o (Pool mockado; nÃ£o valida concorrÃ
   expect(team.slice(0,team.indexOf('FROM public.respostas_escalas'))).not.toMatch(/resposta_texto|respondida_em|resposta_id/);
  });
  it('proposta define constraints que impedem referências cruzadas entre pesquisa, resposta, escala e equipe',()=>{
-  const proposal=readFileSync(resolve(process.cwd(),'../database/proposals/008_escalas_pesquisas.up.sql'),'utf8');
+  const proposal=readFileSync(resolve(process.cwd(),'../database/proposals/009_escalas_pesquisas.up.sql'),'utf8');
   expect(proposal).toContain('FOREIGN KEY (pesquisa_id,resposta_id) REFERENCES public.respostas(pesquisa_id,id)');
   expect(proposal).toContain('escala_id bigint REFERENCES public.escalas_trabalho(id)');
   expect(proposal).toContain('equipe_id bigint REFERENCES public.equipes(id)');

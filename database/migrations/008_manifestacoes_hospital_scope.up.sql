@@ -9,8 +9,9 @@ UPDATE public.manifestacoes m
  WHERE m.setor_id = s.id;
 
 DO $$
-DECLARE hospital_count bigint;
-DECLARE only_hospital_id bigint;
+DECLARE
+  hospital_count bigint;
+  only_hospital_id bigint;
 BEGIN
   SELECT count(*), min(id) INTO hospital_count, only_hospital_id FROM public.hospitais;
   IF hospital_count = 1 THEN

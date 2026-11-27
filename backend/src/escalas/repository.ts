@@ -85,7 +85,7 @@ export class EscalasRepository implements RepositorioEscalas {
     return tx(this.pool,async c=>{
       const member=await c.query(`SELECT me.id FROM public.membros_escala me JOIN public.escalas_trabalho et ON et.id=me.escala_id JOIN public.equipes e ON e.id=et.equipe_id JOIN public.setores s ON s.id=e.setor_id WHERE s.hospital_id=$1 AND et.id=$2 AND me.usuario_id=$3 AND ($4::bigint[] IS NULL OR s.id=ANY($4::bigint[])) AND to_jsonb(me)->>'removido_em' IS NULL FOR UPDATE OF me`,[h,id,usuarioId,sectorIds??null]);
       if(!member.rowCount)return false;
-      // These columns are provided by the unpromoted proposal 008_escalas_pesquisas.up.sql.
+      // These columns are provided by the unpromoted proposal 009_escalas_pesquisas.up.sql.
       const updated=await c.query(`UPDATE public.membros_escala me SET removido_em=CURRENT_TIMESTAMP,removido_por_usuario_id=$3 WHERE me.id=$1 AND EXISTS(SELECT 1 FROM public.usuarios ator WHERE ator.id=$3 AND ator.hospital_id=$2 AND ator.ativo=true) RETURNING me.id`,[member.rows[0].id,h,a]);
       if(!updated.rowCount)return false;
       await c.query(`INSERT INTO public.eventos_auditoria(ator_usuario_id,hospital_id,acao,entidade,entidade_id,detalhes) VALUES($1,$2,'escala.profissional_removido','membro_escala',$3,jsonb_build_object('usuario_id',$4::text))`,[a,h,id,usuarioId]);

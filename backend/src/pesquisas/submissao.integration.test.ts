@@ -40,8 +40,8 @@ const maintenance = configured ? new pg.Pool(connection(maintenanceUser, mainten
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const baselineFile = resolve(projectRoot, 'database/baseline/000_schema.sql');
 const migrationDirectory = resolve(projectRoot, 'database/migrations');
-const proposalFile = resolve(projectRoot, 'database/proposals/008_escalas_pesquisas.up.sql');
-const cleanupFile = resolve(projectRoot, 'database/proposals/008_escalas_pesquisas.limpeza.sql');
+const proposalFile = resolve(projectRoot, 'database/proposals/009_escalas_pesquisas.up.sql');
+const cleanupFile = resolve(projectRoot, 'database/proposals/009_escalas_pesquisas.limpeza.sql');
 const baselineDefaultPrivilegeStatements = [
   'ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT SELECT,USAGE ON SEQUENCES TO vivacare_app;',
   'ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT SELECT,INSERT,UPDATE ON TABLES TO vivacare_app;',

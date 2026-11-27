@@ -2,7 +2,7 @@
 
 ## Colisão de versão da proposta de escalas
 
-O repositório já contém a migration oficial `database/migrations/008_manifestacoes_hospital_scope.up.sql`. A proposta `database/proposals/009_escalas_pesquisas.up.sql` é independente e não é carregada pelo runner, mas **não pode ser promovida como outra migration 008**. Após a DBA reconciliar o ledger e confirmar a cadeia oficial até 008, a próxima versão candidata no repositório é 009; sua numeração final e checksum só devem ser fixados depois dessa conferência. Não renumerar migrations já aplicadas nem aplicar a proposta diretamente.
+O repositório contém a migration oficial `008_manifestacoes_hospital_scope.up.sql`; a proposta de escalas já foi renumerada para `009_escalas_pesquisas.up.sql`. A proposta segue fora de `database/migrations` e não é descoberta pelo runner. A candidata 009 é a próxima versão após a 008 oficial, mas sua promoção depende da validação da cadeia completa em banco descartável, da revisão do inventário e da conciliação documental do histórico Aiven. O SHA-256 esperado dos arquivos versionados está registrado em `docs/RECONCILIACAO_MIGRATIONS_AIVEN.md`; isso não equivale a confirmar quais bytes foram executados no Aiven, que não possui ledger.
 
 ## Auditoria read-only do PostgreSQL hospedado
 

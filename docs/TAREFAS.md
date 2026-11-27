@@ -17,7 +17,7 @@ Responsáveis: **Pessoa A** = Raissa (backend e banco) · **Pessoa B** = Sofia (
 
 | Tarefa | Responsavel | Observacao |
 |---|---|---|
-| Revisar e promover a proposta de escalas para a próxima versão livre | Pessoa A | A migration oficial 008 já existe. A proposta não pode ser promovida como outra 008; depende da reconciliação do ledger, classificação `NOTA` e contagem de manifestações legadas vinculadas |
+| Revisar e promover a proposta de escalas como migration 009 | Pessoa A | A migration oficial 008 já existe. A proposta 009 continua fora do runner; depende da reconciliação operacional, validação em banco descartável, classificação `NOTA` e contagem de manifestações legadas vinculadas |
 | Validar o fluxo ponta a ponta no ambiente de teste | A + B | Após compatibilidade do schema e bootstrap da conta administradora |
 
 ## Pendentes

@@ -3,11 +3,11 @@ import {relative,resolve} from 'node:path';
 import {describe,expect,it} from 'vitest';
 
 const root=resolve(process.cwd(),'..');
-const proposalPath=resolve(root,'database/proposals/008_escalas_pesquisas.up.sql');
+const proposalPath=resolve(root,'database/proposals/009_escalas_pesquisas.up.sql');
 const allowedNoteRange=(minimum:number|null,maximum:number|null)=>
   (minimum===null&&maximum===null)||(minimum!==null&&maximum!==null&&minimum>=1&&minimum<=5&&maximum>=1&&maximum<=5&&minimum<maximum);
 
-describe('contratos estáticos da proposta 008 (não executa SQL nem substitui PostgreSQL)',()=>{
+describe('contratos estáticos da proposta 009 (não executa SQL nem substitui PostgreSQL)',()=>{
  it('mantém FKs de existência e valida o par escala/equipe no momento da associação',async()=>{
   const sql=await readFile(proposalPath,'utf8');
   expect(sql).toContain('escala_id bigint REFERENCES public.escalas_trabalho(id)');
@@ -85,7 +85,7 @@ describe('contratos estáticos da proposta 008 (não executa SQL nem substitui P
   const sql=await readFile(proposalPath,'utf8');
   expect(sql).not.toContain('ALTER COLUMN nota_nps');
   expect(sql).not.toContain('DROP CONSTRAINT respostas_nota_nps_check');
-  expect(relative(root,proposalPath).replaceAll('\\','/')).toBe('database/proposals/008_escalas_pesquisas.up.sql');
+  expect(relative(root,proposalPath).replaceAll('\\','/')).toBe('database/proposals/009_escalas_pesquisas.up.sql');
   expect(sql).toContain('CREATE TABLE public.respostas_escalas');
  });
 
