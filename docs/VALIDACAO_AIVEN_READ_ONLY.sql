@@ -97,3 +97,89 @@ SELECT id,texto,ativa,obrigatoria
  ORDER BY id;
 
 -- Nunca execute GRANT/ALTER/CREATE/DROP/INSERT/UPDATE/DELETE a partir desta folha.
+
+-- 6) Migrations oficiais 001 a 008: verificacao estrutural.
+SELECT
+  to_regclass('public.sessoes') IS NOT NULL AS m001_sessoes,
+  EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='usuarios' AND column_name='deve_trocar_senha') AS m001_coluna,
+  to_regclass('public.ix_sessoes_usuario') IS NOT NULL AS m001_indice_usuario,
+  to_regclass('public.ix_sessoes_expira') IS NOT NULL AS m001_indice_expiracao,
+  has_table_privilege('vivacare_app','public.sessoes','SELECT') AS m001_app_select,
+  has_table_privilege('vivacare_app','public.sessoes','INSERT') AS m001_app_insert;
+
+SELECT
+  EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='usuarios' AND column_name='hospital_id') AS m002_coluna,
+  EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid=to_regclass('public.usuarios') AND conname='usuarios_hospital_id_fkey') AS m002_fk,
+  to_regclass('public.ix_usuarios_hospital_id') IS NOT NULL AS m002_indice;
+
+SELECT
+  to_regclass('public.eventos_auditoria') IS NOT NULL AS m003_tabela,
+  to_regclass('public.ix_eventos_auditoria_hospital_criado') IS NOT NULL AS m003_indice_hospital,
+  to_regclass('public.ix_eventos_auditoria_entidade') IS NOT NULL AS m003_indice_entidade,
+  has_table_privilege('vivacare_app','public.eventos_auditoria','INSERT') AS m003_app_insert,
+  has_table_privilege('vivacare_app','public.eventos_auditoria','SELECT') AS m003_app_select;
+
+SELECT
+  to_regclass('public.permissoes') IS NOT NULL AS m004_tabela_permissoes,
+  to_regclass('public.perfis_permissoes') IS NOT NULL AS m004_tabela_associacoes;
+
+SELECT
+  has_table_privilege('vivacare_app','public.usuarios','SELECT') AS m006_app_select_usuarios,
+  has_table_privilege('vivacare_app','public.usuarios','INSERT') AS m006_app_insert_usuarios,
+  has_table_privilege('vivacare_app','public.usuarios','UPDATE') AS m006_app_update_usuarios,
+  has_sequence_privilege('vivacare_app','public.usuarios_id_seq','USAGE') AS m006_app_sequence_usage,
+  has_table_privilege('vivacare_app','public.usuario_setores','DELETE') AS m007_app_delete_usuario_setores;
+
+SELECT
+  EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='manifestacoes' AND column_name='hospital_id') AS m008_coluna,
+  EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid=to_regclass('public.manifestacoes') AND conname='manifestacoes_hospital_id_fkey') AS m008_fk,
+  to_regclass('public.idx_manifestacoes_hospital_data') IS NOT NULL AS m008_indice;
+
+
+-- 7) Inventario dos perfis existentes: nao cria nem altera registros.
+SELECT id, codigo
+  FROM public.perfis
+ ORDER BY codigo;
+
+
+-- 8) Privilegios efetivamente concedidos ao papel da aplicacao.
+SELECT table_name, privilege_type
+  FROM information_schema.role_table_grants
+ WHERE grantee = 'vivacare_app'
+   AND table_schema = 'public'
+   AND table_name IN ('usuarios','perfis','usuario_setores','eventos_auditoria')
+ ORDER BY table_name, privilege_type;
+
+-- 9) Privilegios por coluna em usuarios.
+SELECT column_name, privilege_type
+  FROM information_schema.column_privileges
+ WHERE grantee = 'vivacare_app'
+   AND table_schema = 'public'
+   AND table_name = 'usuarios'
+ ORDER BY column_name, privilege_type;
+
+-- 10) Privilegios de sequencias relevantes.
+SELECT object_name AS sequence_name, privilege_type
+  FROM information_schema.role_usage_grants
+ WHERE grantee = 'vivacare_app'
+   AND object_schema = 'public'
+   AND object_type = 'SEQUENCE'
+ ORDER BY sequence_name, privilege_type;
+
+
+-- ACL real das tabelas que precisam de reconciliacao.
+SELECT
+  c.relname AS tabela,
+  pg_get_userbyid(c.relowner) AS proprietario,
+  CASE WHEN a.grantee = 0 THEN 'PUBLIC'
+       ELSE pg_get_userbyid(a.grantee) END AS concedido_a,
+  a.privilege_type,
+  a.is_grantable
+FROM pg_class c
+JOIN pg_namespace n ON n.oid = c.relnamespace
+CROSS JOIN LATERAL aclexplode(
+  COALESCE(c.relacl, acldefault('r', c.relowner))
+) a
+WHERE n.nspname = 'public'
+  AND c.relname IN ('usuarios','perfis','usuario_setores','eventos_auditoria')
+ORDER BY c.relname, concedido_a, a.privilege_type;
